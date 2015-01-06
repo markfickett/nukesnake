@@ -1,0 +1,10 @@
+// Game state and RPC requests/responses.
+
+message Request {
+  optional string name = 1;
+}
+
+message Response {
+  optional string fortune = 1;
+  optional uint64 lucky_number = 2;
+}
