@@ -23,6 +23,7 @@ message Player {
   optional string secret = 1;
   required string name = 2;
   required Coordinate pos = 3;
+  required Coordinate direction = 4;
 }
 
 message GameState {
