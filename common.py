@@ -21,6 +21,7 @@ def RegisterProtoSerialization():
   """
   for proto_class in (
       messages_pb2.RegisterRequest,
+      messages_pb2.UnregisterRequest,
       messages_pb2.MoveRequest,
       messages_pb2.GameState):
     _RegisterProtoSerializationForClass(proto_class)

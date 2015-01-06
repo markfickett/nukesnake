@@ -5,6 +5,10 @@ message RegisterRequest {
   required string player_name = 2;
 }
 
+message UnregisterRequest {
+  required string player_secret = 1;
+}
+
 message MoveRequest {
   required string player_secret = 1;
   required Coordinate move = 2;
@@ -22,5 +26,6 @@ message Player {
 }
 
 message GameState {
-  repeated Player player = 1;
+  required Coordinate size = 1;
+  repeated Player player = 2;
 }
