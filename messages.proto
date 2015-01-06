@@ -26,7 +26,38 @@ message Player {
   required Coordinate direction = 4;
 }
 
+message Block {
+  enum Type {
+    PLAYER_HEAD = 1;
+    PLAYER_TAIL = 2;
+    WALL = 3;
+    ROCKET = 4;
+    MINE = 5;
+    EXPLOSION = 6;
+    ROCK = 7;
+    TREE = 8;
+    WATER = 9;
+    GRASS = 10;
+  }
+
+  required Type type = 1;
+  required Coordinate pos = 2;
+  optional Coordinate direction = 3;
+  optional uint64 created_tick = 4;
+  optional uint32 player_id = 5;
+}
+
+message BlockProperties {
+  // Instead of a rocket or player colliding with this block, it reflects.
+  optional bool bounce = 1;
+  // If a rocket or player collides with this block, both are destroyed.
+  optional bool break = 2;
+  // If a rocket collides with this block, it breaks and produces rockets
+  // outbound in all directions.
+  optional bool explode = 3;
+}
+
 message GameState {
   required Coordinate size = 1;
-  repeated Player player = 2;
+  repeated Block block = 2;
 }
