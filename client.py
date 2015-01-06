@@ -20,7 +20,6 @@ _PLAYER_ICONS = (
 
 
 def _DrawingMain(window):
-  player_icons = {}
   curses.curs_set(False)
   window.nodelay(True)
 
@@ -53,13 +52,17 @@ def _DrawingMain(window):
           % (state.size, w, h))
 
     window.erase()
-    for player in state.player:
-      icon = player_icons.get(player.name)
-      if not icon:
-        icon = random.choice(_PLAYER_ICONS)
-        player_icons[player.name] = icon
-      window.addstr(player.pos.y, player.pos.x, icon.encode('utf-8'))
+    for block in state.block:
+      _RenderBlock(block, window)
     window.refresh()
+
+
+def _RenderBlock(block, window):
+  B = messages_pb2.Block
+  s = '?'
+  if block.type == B.PLAYER_HEAD:
+    s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
+  window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'))
 
 
 if __name__ == '__main__':
