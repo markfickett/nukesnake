@@ -28,6 +28,7 @@ def _DrawingMain(window):
     time.sleep(_UPDATE_INTERVAL)
 
     move_key = window.getch()
+    curses.flushinp()
     x, y = {
         ord('q'): (-1, -1),
         ord('w'): (0, -1),
