@@ -13,9 +13,9 @@ import messages_pb2
 
 _UPDATE_INTERVAL = 0.1
 _PLAYER_ICONS = (
-    u'\u2603',  # snowman
-    u'\u2602',  # umbrella
-    u'\u2600',  # sun
+    u'\N{SNOWMAN}',
+    u'\N{UMBRELLA}',
+    u'\N{FISHEYE}',
 )
 
 
@@ -46,7 +46,7 @@ def _DrawingMain(window):
     state = s.GetGameState()
 
     h, w = window.getmaxyx()
-    if w > state.size.x or h > state.size.y:
+    if state.size.x >= w or state.size.y >= h:
       raise RuntimeError(
           'World %s too big for window w=%d h=%d.'
           % (state.size, w, h))
@@ -62,6 +62,11 @@ def _RenderBlock(block, window):
   s = '?'
   if block.type == B.PLAYER_HEAD:
     s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
+  else:
+    s = {
+      B.PLAYER_TAIL: u'\N{DARK SHADE}',
+      B.WALL: u'\N{FULL BLOCK}',
+    }.get(block.type, '?')
   window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'))
 
 
