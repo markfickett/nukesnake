@@ -3,6 +3,7 @@
 # Generate the Python protos with: protoc --python_out=. messages.proto
 
 import base64
+import inspect
 import random
 
 import Pyro4
@@ -19,12 +20,9 @@ def RegisterProtoSerialization():
   See http://pythonhosted.org/Pyro4/clientcode.html#serialization and
   Pyro4's examples/ser_custom/*.py .
   """
-  for proto_class in (
-      messages_pb2.RegisterRequest,
-      messages_pb2.UnregisterRequest,
-      messages_pb2.MoveRequest,
-      messages_pb2.GameState):
-    _RegisterProtoSerializationForClass(proto_class)
+  for unused_name, obj in inspect.getmembers(messages_pb2):
+    if inspect.isclass(obj):
+      _RegisterProtoSerializationForClass(obj)
   _TestSerialization()
 
 
