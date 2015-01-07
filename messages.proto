@@ -62,4 +62,5 @@ message BlockProperties {
 message GameState {
   required Coordinate size = 1;
   repeated Block block = 2;
+  repeated uint32 killed_player_id = 3;
 }

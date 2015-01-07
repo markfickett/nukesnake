@@ -19,7 +19,7 @@ _PLAYER_ICONS = (
 )
 
 
-def _DrawingMain(window):
+def _DrawingMain(window, player_id, player_name):
   curses.curs_set(False)
   window.nodelay(True)
 
@@ -54,7 +54,14 @@ def _DrawingMain(window):
     window.erase()
     for block in state.block:
       _RenderBlock(block, window)
+    if player_id in state.killed_player_id:
+      _RenderMessage(window, '%s Dies' % player_name)
     window.refresh()
+
+
+def _RenderMessage(window, msg):
+  h, w = window.getmaxyx()
+  window.addstr(h / 2, w / 2 - len(msg) / 2, msg)
 
 
 def _RenderBlock(block, window):
@@ -85,6 +92,6 @@ if __name__ == '__main__':
   locale.setlocale(locale.LC_ALL, '')
 
   try:
-    curses.wrapper(_DrawingMain)
+    curses.wrapper(_DrawingMain, player_id, name)
   finally:
     s.Unregister(messages_pb2.UnregisterRequest(player_secret=secret))
