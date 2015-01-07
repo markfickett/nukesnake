@@ -44,6 +44,9 @@ def _DrawingMain(window, player_id, player_name):
           player_secret=secret,
           move=messages_pb2.Coordinate(x=x, y=y)))
     state = s.GetGameState()
+    if (state.stage == messages_pb2.GameState.COLLECT_PLAYERS
+        and move_key == ord(' ')):
+      s.Start()
 
     h, w = window.getmaxyx()
     if state.size.x >= w or state.size.y >= h:
@@ -54,8 +57,14 @@ def _DrawingMain(window, player_id, player_name):
     window.erase()
     for block in state.block:
       _RenderBlock(block, window)
-    if player_id in state.killed_player_id:
+    if state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
+      _RenderMessage(window, 'Press space to start.')
+    elif state.stage == messages_pb2.GameState.ROUND_START:
+      _RenderMessage(window, 'Ready...')
+    elif player_id in state.killed_player_id:
       _RenderMessage(window, '%s Dies' % player_name)
+    elif state.stage == messages_pb2.GameState.ROUND_END:
+      _RenderMessage(window, '%s wins!' % player_name)
     window.refresh()
 
 

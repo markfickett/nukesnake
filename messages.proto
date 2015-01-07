@@ -60,7 +60,15 @@ message BlockProperties {
 }
 
 message GameState {
+  enum Stage {
+    COLLECT_PLAYERS = 1;
+    ROUND_START = 2;
+    ROUND = 3;
+    ROUND_END = 4;
+  }
+
   required Coordinate size = 1;
   repeated Block block = 2;
   repeated uint32 killed_player_id = 3;
+  required Stage stage = 4;
 }
