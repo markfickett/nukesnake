@@ -5,6 +5,15 @@ message RegisterRequest {
   required string player_name = 2;
 }
 
+message PlayerInfo {
+  required uint32 player_id = 1;
+  required string name = 2;
+}
+
+message RegisterResponse {
+  required PlayerInfo player = 1;
+}
+
 message UnregisterRequest {
   required string player_secret = 1;
 }
@@ -17,13 +26,6 @@ message MoveRequest {
 message Coordinate {
   required int32 x = 1;
   required int32 y = 2;
-}
-
-message Player {
-  optional string secret = 1;
-  required string name = 2;
-  required Coordinate pos = 3;
-  required Coordinate direction = 4;
 }
 
 message Block {

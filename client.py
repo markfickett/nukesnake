@@ -63,6 +63,7 @@ def _RenderBlock(block, window):
   if block.type == B.PLAYER_HEAD:
     s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
   else:
+    # http://www.alanflavell.org.uk/unicode/unidata25.html
     s = {
       B.PLAYER_TAIL: u'\N{DARK SHADE}',
       B.WALL: u'\N{FULL BLOCK}',
@@ -77,8 +78,9 @@ if __name__ == '__main__':
 
   name = raw_input('What is your name? ').strip()
 
-  s.Register(messages_pb2.RegisterRequest(
+  resp = s.Register(messages_pb2.RegisterRequest(
       player_secret=secret, player_name=name))
+  player_id = resp.player.player_id
 
   locale.setlocale(locale.LC_ALL, '')
 
