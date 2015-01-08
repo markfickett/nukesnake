@@ -17,7 +17,6 @@ _PLAYER_ICONS = [
     '$',
     u'\N{Circled Dot Operator}',
     u'\N{Ohm Sign}',
-    u'\N{Sailboat}',
 ]
 _PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
