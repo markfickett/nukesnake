@@ -60,7 +60,7 @@ def _DrawingMain(window, player_id, player_name):
 
     window.erase()
     for block in state.block:
-      _RenderBlock(block, window)
+      _RenderBlock(block, window, player_id, state.stage)
     if state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
       _RenderMessage(window, 'Press space to start.')
     elif state.stage == messages_pb2.GameState.ROUND_START:
@@ -77,11 +77,14 @@ def _RenderMessage(window, msg):
   window.addstr(h / 2, w / 2 - len(msg) / 2, msg)
 
 
-def _RenderBlock(block, window):
+def _RenderBlock(block, window, player_id, stage):
   B = messages_pb2.Block
   s = '?'
+  s_attr = curses.A_NORMAL
   if block.type == B.PLAYER_HEAD:
     s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
+    if stage != messages_pb2.GameState.ROUND and block.player_id == player_id:
+      s_attr = curses.A_BLINK
   else:
     # http://www.alanflavell.org.uk/unicode/unidata25.html
     s = {
@@ -89,7 +92,7 @@ def _RenderBlock(block, window):
       B.WALL: u'\N{FULL BLOCK}',
       B.MINE: u'\N{REFERENCE MARK}',
     }.get(block.type, '?')
-  window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'))
+  window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
 
 
 if __name__ == '__main__':
