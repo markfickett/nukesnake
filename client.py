@@ -12,11 +12,15 @@ import messages_pb2
 
 
 _UPDATE_INTERVAL = 0.1
-_PLAYER_ICONS = (
-    u'\N{SNOWMAN}',
+_PLAYER_ICONS = [
     u'\N{UMBRELLA}',
-    u'\N{FISHEYE}',
-)
+    '$',
+    u'\N{Circled Dot Operator}',
+    u'\N{Roman Numeral One Thousand C D}',
+    u'\N{Ohm Sign}',
+    u'\N{Sailboat}',
+]
+_PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
 
 def _DrawingMain(window, player_id, player_name):
@@ -83,6 +87,7 @@ def _RenderBlock(block, window):
     s = {
       B.PLAYER_TAIL: u'\N{DARK SHADE}',
       B.WALL: u'\N{FULL BLOCK}',
+      B.MINE: u'\N{REFERENCE MARK}',
     }.get(block.type, '?')
   window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'))
 
