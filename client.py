@@ -16,7 +16,6 @@ _PLAYER_ICONS = [
     u'\N{UMBRELLA}',
     '$',
     u'\N{Circled Dot Operator}',
-    u'\N{Roman Numeral One Thousand C D}',
     u'\N{Ohm Sign}',
     u'\N{Sailboat}',
 ]
