@@ -52,9 +52,13 @@ def _DrawingMain(window, player_id, player_name):
 
     h, w = window.getmaxyx()
     if state.size.x >= w or state.size.y >= h:
-      raise RuntimeError(
-          'World %s too big for window w=%d h=%d.'
-          % (state.size, w, h))
+      window.erase()
+      _RenderMessage(
+          window,
+          'Resize to %dx%d (now %dx%d).'
+          % (state.size.x + 1, state.size.y + 1, w, h))
+      window.refresh()
+      continue
 
     window.erase()
     for block in state.block:
