@@ -53,6 +53,7 @@ def _DrawingMain(window, player_id, player_name):
     state = s.GetGameState(state_req)
     if not state:
       continue
+    last_state_hash = state.hash
 
     if (state.stage == messages_pb2.GameState.COLLECT_PLAYERS
         and move_key == ord(' ')):
@@ -69,10 +70,12 @@ def _DrawingMain(window, player_id, player_name):
       continue
 
     alive = False
+    winner_name = None
     for info in state.player_info:
       if info.player_id == player_id:
         alive = info.alive
-        break
+      if info.alive:
+        winner_name = info.name
 
     window.erase()
     for block in state.block:
@@ -83,14 +86,14 @@ def _DrawingMain(window, player_id, player_name):
       _RenderMessage(window, 'Ready...')
     elif not alive:
       _RenderMessage(window, '%s Dies' % player_name)
-    elif state.stage == messages_pb2.GameState.ROUND_END:
-      _RenderMessage(window, '%s wins!' % player_name)
+    if state.stage == messages_pb2.GameState.ROUND_END and winner_name:
+      _RenderMessage(window, '%s wins!' % winner_name, y_offset=1)
     window.refresh()
 
 
-def _RenderMessage(window, msg):
+def _RenderMessage(window, msg, y_offset=0):
   h, w = window.getmaxyx()
-  window.addstr(h / 2, w / 2 - len(msg) / 2, msg)
+  window.addstr(h / 2 + y_offset, w / 2 - len(msg) / 2, msg)
 
 
 def _RenderBlock(block, window, player_id, stage):
