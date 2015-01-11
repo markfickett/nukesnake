@@ -46,6 +46,8 @@ def _DrawingMain(window, player_id, player_name):
       s.Move(messages_pb2.MoveRequest(
           player_secret=secret,
           move=messages_pb2.Coordinate(x=x, y=y)))
+    if move_key == ord(' '):
+      s.Action(messages_pb2.IdentifiedRequest(player_secret=secret))
 
     state_req = messages_pb2.GetGameStateRequest()
     if last_state_hash is not None:
@@ -54,10 +56,6 @@ def _DrawingMain(window, player_id, player_name):
     if not state:
       continue
     last_state_hash = state.hash
-
-    if (state.stage == messages_pb2.GameState.COLLECT_PLAYERS
-        and move_key == ord(' ')):
-      s.Start()
 
     h, w = window.getmaxyx()
     if state.size.x >= w or state.size.y >= h:
@@ -109,6 +107,7 @@ def _RenderBlock(block, window, player_id, stage):
     s = {
       B.PLAYER_TAIL: u'\N{DARK SHADE}',
       B.WALL: u'\N{FULL BLOCK}',
+      B.ROCKET: u'\N{WHITE STAR}',
       B.MINE: u'\N{REFERENCE MARK}',
     }.get(block.type, '?')
   window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
@@ -130,4 +129,4 @@ if __name__ == '__main__':
   try:
     curses.wrapper(_DrawingMain, player_id, name)
   finally:
-    s.Unregister(messages_pb2.UnregisterRequest(player_secret=secret))
+    s.Unregister(messages_pb2.IdentifiedRequest(player_secret=secret))
