@@ -9,6 +9,7 @@ message PlayerInfo {
   required uint32 player_id = 1;
   required string name = 2;
   optional bool alive = 3;
+  repeated Block.Type inventory = 4;
 }
 
 message RegisterResponse {
@@ -34,13 +35,16 @@ message Block {
     PLAYER_HEAD = 1;
     PLAYER_TAIL = 2;
     WALL = 3;
-    ROCKET = 4;
-    MINE = 5;
-    EXPLOSION = 6;
-    ROCK = 7;
-    TREE = 8;
-    WATER = 9;
-    GRASS = 10;
+    AMMO = 4;
+    ROCKET = 5;
+
+    // for future use
+    MINE = 6;
+    EXPLOSION = 7;
+    ROCK = 8;
+    TREE = 9;
+    WATER = 10;
+    GRASS = 11;
   }
 
   required Type type = 1;
