@@ -103,11 +103,12 @@ def _RenderBlock(block, window, player_id, stage):
     if stage != messages_pb2.GameState.ROUND and block.player_id == player_id:
       s_attr = curses.A_BLINK
   else:
-    # http://www.alanflavell.org.uk/unicode/unidata25.html
+    # alanflavell.org.uk/unicode/unidata25.html and unicode-table.com/
     s = {
       B.PLAYER_TAIL: u'\N{DARK SHADE}',
       B.WALL: u'\N{FULL BLOCK}',
       B.ROCKET: u'\N{WHITE STAR}',
+      B.AMMO: u'\N{Tamil Sign Visarga}',
       B.MINE: u'\N{REFERENCE MARK}',
     }.get(block.type, '?')
   window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
