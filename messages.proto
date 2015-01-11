@@ -15,7 +15,7 @@ message RegisterResponse {
   required PlayerInfo player = 1;
 }
 
-message UnregisterRequest {
+message IdentifiedRequest {
   required string player_secret = 1;
 }
 
