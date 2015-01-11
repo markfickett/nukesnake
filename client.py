@@ -11,7 +11,7 @@ import common
 import messages_pb2
 
 
-_UPDATE_INTERVAL = 0.1
+_UPDATE_INTERVAL = 1.0 / 120.0
 _PLAYER_ICONS = [
     u'\N{UMBRELLA}',
     '$',
@@ -24,6 +24,7 @@ _PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 def _DrawingMain(window, player_id, player_name):
   curses.curs_set(False)
   window.nodelay(True)
+  last_state_hash = None
 
   while True:
     time.sleep(_UPDATE_INTERVAL)
@@ -45,7 +46,14 @@ def _DrawingMain(window, player_id, player_name):
       s.Move(messages_pb2.MoveRequest(
           player_secret=secret,
           move=messages_pb2.Coordinate(x=x, y=y)))
-    state = s.GetGameState()
+
+    state_req = messages_pb2.GetGameStateRequest()
+    if last_state_hash is not None:
+      state_req.hash = last_state_hash
+    state = s.GetGameState(state_req)
+    if not state:
+      continue
+
     if (state.stage == messages_pb2.GameState.COLLECT_PLAYERS
         and move_key == ord(' ')):
       s.Start()
@@ -60,6 +68,12 @@ def _DrawingMain(window, player_id, player_name):
       window.refresh()
       continue
 
+    alive = False
+    for info in state.player_info:
+      if info.player_id == player_id:
+        alive = info.alive
+        break
+
     window.erase()
     for block in state.block:
       _RenderBlock(block, window, player_id, state.stage)
@@ -67,7 +81,7 @@ def _DrawingMain(window, player_id, player_name):
       _RenderMessage(window, 'Press space to start.')
     elif state.stage == messages_pb2.GameState.ROUND_START:
       _RenderMessage(window, 'Ready...')
-    elif player_id in state.killed_player_id:
+    elif not alive:
       _RenderMessage(window, '%s Dies' % player_name)
     elif state.stage == messages_pb2.GameState.ROUND_END:
       _RenderMessage(window, '%s wins!' % player_name)

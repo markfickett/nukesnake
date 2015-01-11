@@ -8,6 +8,7 @@ message RegisterRequest {
 message PlayerInfo {
   required uint32 player_id = 1;
   required string name = 2;
+  optional bool alive = 3;
 }
 
 message RegisterResponse {
@@ -59,6 +60,10 @@ message BlockProperties {
   optional bool explode = 3;
 }
 
+message GetGameStateRequest {
+  optional uint64 hash = 1;
+}
+
 message GameState {
   enum Stage {
     COLLECT_PLAYERS = 1;
@@ -67,8 +72,9 @@ message GameState {
     ROUND_END = 4;
   }
 
-  required Coordinate size = 1;
-  repeated Block block = 2;
-  repeated uint32 killed_player_id = 3;
-  required Stage stage = 4;
+  required uint64 hash = 1;
+  required Coordinate size = 2;
+  repeated Block block = 3;
+  repeated PlayerInfo player_info = 4;
+  required Stage stage = 5;
 }
