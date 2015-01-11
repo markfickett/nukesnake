@@ -67,13 +67,13 @@ def _DrawingMain(window, player_id, player_name):
       window.refresh()
       continue
 
-    alive = False
-    winner_name = None
+    self_info = None
+    living_info = None
     for info in state.player_info:
       if info.player_id == player_id:
-        alive = info.alive
+        self_info = info
       if info.alive:
-        winner_name = info.name
+        living_info = info
 
     window.erase()
     for block in state.block:
@@ -82,10 +82,14 @@ def _DrawingMain(window, player_id, player_name):
       _RenderMessage(window, 'Press space to start.')
     elif state.stage == messages_pb2.GameState.ROUND_START:
       _RenderMessage(window, 'Ready...')
-    elif not alive:
-      _RenderMessage(window, '%s Dies' % player_name)
-    if state.stage == messages_pb2.GameState.ROUND_END and winner_name:
-      _RenderMessage(window, '%s wins!' % winner_name, y_offset=1)
+    elif not self_info.alive:
+      _RenderMessage(
+          window, '%s Dies (score %d)' % (self_info.name, self_info.score))
+    if state.stage == messages_pb2.GameState.ROUND_END and living_info:
+      _RenderMessage(
+          window,
+          '%s wins! (score %d)'
+          % (living_info.name, living_info.score), y_offset=1)
     window.refresh()
 
 
