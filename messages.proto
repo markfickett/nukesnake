@@ -38,9 +38,9 @@ message Block {
     WALL = 3;
     AMMO = 4;
     ROCKET = 5;
+    MINE = 6;
 
     // for future use
-    MINE = 6;
     EXPLOSION = 7;
     ROCK = 8;
     TREE = 9;
