@@ -11,7 +11,9 @@ import common
 import messages_pb2
 
 
+_B = messages_pb2.Block
 _UPDATE_INTERVAL = 1.0 / 120.0
+# alanflavell.org.uk/unicode/unidata25.html and unicode-table.com/
 _PLAYER_ICONS = [
     u'\N{UMBRELLA}',
     '$',
@@ -19,12 +21,44 @@ _PLAYER_ICONS = [
     u'\N{Ohm Sign}',
 ]
 _PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
+_BLOCK_CHARACTERS = {
+  _B.PLAYER_TAIL: u'\N{DARK SHADE}',
+  _B.WALL: u'\N{FULL BLOCK}',
+  _B.ROCKET: u'\N{WHITE STAR}',
+  _B.AMMO: u'\N{Tamil Sign Visarga}',
+  _B.MINE: u'\N{REFERENCE MARK}',
+}
+_DEFAULT_BLOCK_CHARACTER = '?'
+_BLOCK_FOREGROUNDS = {
+  curses.COLOR_GREEN: (_B.WALL,),
+  curses.COLOR_MAGENTA: (_B.MINE, _B.ROCKET),
+}
+_BG_COLOR = curses.COLOR_BLACK
+_PLAYER_COLORS = (
+  curses.COLOR_CYAN,
+  curses.COLOR_RED,
+  curses.COLOR_YELLOW,
+  curses.COLOR_WHITE,
+)
 
 
 def _DrawingMain(window, player_id, player_name):
   curses.curs_set(False)
   window.nodelay(True)
   last_state_hash = None
+
+  block_palettes = {}
+  palette_id = 1
+  for fg, block_types in _BLOCK_FOREGROUNDS.iteritems():
+    for block_type in block_types:
+      block_palettes[block_type] = palette_id
+    curses.init_pair(palette_id, fg, _BG_COLOR)
+    palette_id += 1
+  player_palettes = []
+  for color in _PLAYER_COLORS:
+    curses.init_pair(palette_id, color, _BG_COLOR)
+    player_palettes.append(palette_id)
+    palette_id += 1
 
   while True:
     time.sleep(_UPDATE_INTERVAL)
@@ -77,7 +111,13 @@ def _DrawingMain(window, player_id, player_name):
 
     window.erase()
     for block in state.block:
-      _RenderBlock(block, window, player_id, state.stage)
+      _RenderBlock(
+          block,
+          window,
+          player_id,
+          state.stage,
+          block_palettes,
+          player_palettes)
     if state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
       _RenderMessage(window, 'Press space to start.')
     elif state.stage == messages_pb2.GameState.ROUND_START:
@@ -98,23 +138,27 @@ def _RenderMessage(window, msg, y_offset=0):
   window.addstr(h / 2 + y_offset, w / 2 - len(msg) / 2, msg)
 
 
-def _RenderBlock(block, window, player_id, stage):
-  B = messages_pb2.Block
+def _RenderBlock(
+    block,
+    window,
+    player_id,
+    stage,
+    block_palettes,
+    player_palettes):
   s = '?'
   s_attr = curses.A_NORMAL
-  if block.type == B.PLAYER_HEAD:
+  if block.type in (_B.PLAYER_HEAD, _B.PLAYER_TAIL):
+    palette_id = player_palettes[block.player_id % len(player_palettes)]
+  else:
+    palette_id = block_palettes.get(block.type)
+  if palette_id:
+    s_attr += curses.color_pair(palette_id)
+  if block.type == _B.PLAYER_HEAD:
     s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
     if stage != messages_pb2.GameState.ROUND and block.player_id == player_id:
-      s_attr = curses.A_BLINK
+      s_attr += curses.A_BLINK
   else:
-    # alanflavell.org.uk/unicode/unidata25.html and unicode-table.com/
-    s = {
-      B.PLAYER_TAIL: u'\N{DARK SHADE}',
-      B.WALL: u'\N{FULL BLOCK}',
-      B.ROCKET: u'\N{WHITE STAR}',
-      B.AMMO: u'\N{Tamil Sign Visarga}',
-      B.MINE: u'\N{REFERENCE MARK}',
-    }.get(block.type, '?')
+    s = _BLOCK_CHARACTERS.get(block.type, _DEFAULT_BLOCK_CHARACTER)
   window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
 
 
