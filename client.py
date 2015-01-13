@@ -7,8 +7,10 @@ import time
 
 import Pyro4
 
+import config
 import common
 import messages_pb2
+import server
 
 
 _B = messages_pb2.Block
@@ -117,6 +119,8 @@ class Client:
       curses.flushinp()
       for i, (secret, info) in enumerate(self._players_secret_and_info):
         self._DoPlayerCommand(i, secret, info, key_code)
+      if config.NO_NETWORK:
+        self._game_server.Update()
 
       if self._UpdateGameState():
         self._Repaint()
@@ -221,8 +225,12 @@ class Client:
 
 
 def Main():
-  common.RegisterProtoSerialization()
-  game_server = Pyro4.Proxy('PYRONAME:%s' % common.SERVER_URI_NAME)
+  if config.NO_NETWORK:
+    game_server = server.Server()
+  else:
+    common.RegisterProtoSerialization()
+    game_server = Pyro4.Proxy('PYRONAME:%s' % common.SERVER_URI_NAME)
+
   locale.setlocale(locale.LC_ALL, '')
 
   client = Client(game_server)
