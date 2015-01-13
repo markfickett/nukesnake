@@ -1,5 +1,3 @@
-# http://pythonhosted.org/Pyro4/intro.html#simple-example
-
 import curses
 import locale
 import random
