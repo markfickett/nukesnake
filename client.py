@@ -236,7 +236,17 @@ def Main():
   client = Client(game_server)
   names = []
   while len(names) < _MAX_LOCAL_PLAYERS:
-    name = raw_input('Name for player %d? ' % (len(names) + 1)).strip()
+    i = len(names)
+    print (
+        'Player %d action key is %r, move keys are '
+        % (i + 1, chr(_ACTION_KEYS[i]))),
+    move_keys = _MOVE_KEYS[i].items()
+    move_keys.sort(
+        key=lambda key_and_coord: (key_and_coord[1][1], key_and_coord[1][0]))
+    for c, _ in move_keys:
+      print chr(c),
+    print ''
+    name = raw_input('Name for player %d? ' % (i + 1)).strip()
     if not name:
       break
     names.append(name)
