@@ -3,8 +3,6 @@ import locale
 import random
 import time
 
-import Pyro4
-
 import config
 import common
 import messages_pb2
@@ -226,6 +224,7 @@ def Main():
   if config.NO_NETWORK:
     game_server = server.Server()
   else:
+    import Pyro4
     common.RegisterProtoSerialization()
     game_server = Pyro4.Proxy('PYRONAME:%s' % common.SERVER_URI_NAME)
 
