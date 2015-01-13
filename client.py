@@ -54,10 +54,22 @@ _MOVE_KEYS = (
        ord('x'): (0, 1),
        ord('c'): (1, 1),
     },
+    {
+       ord('u'): (-1, -1),
+       ord('i'): (0, -1),
+       ord('o'): (1, -1),
+       ord('j'): (-1, 0),
+       ord('k'): (0, 1),
+       ord('l'): (1, 0),
+       ord('m'): (-1, 1),
+       ord(','): (0, 1),
+       ord('.'): (1, 1),
+    },
 )
 _MAX_LOCAL_PLAYERS = len(_MOVE_KEYS)
 _ACTION_KEYS = (
-    ord(' '),
+    ord('`'),
+    ord('\\'),
 )
 assert _MAX_LOCAL_PLAYERS == len(_ACTION_KEYS)
 
