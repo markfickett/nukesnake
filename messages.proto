@@ -39,13 +39,11 @@ message Block {
     AMMO = 4;
     ROCKET = 5;
     MINE = 6;
+    ROCK = 7;
+    TREE = 8;
 
     // for future use
-    EXPLOSION = 7;
-    ROCK = 8;
-    TREE = 9;
-    WATER = 10;
-    GRASS = 11;
+    EXPLOSION = 9;
   }
 
   required Type type = 1;

@@ -7,7 +7,7 @@ _B = messages_pb2.Block
 
 # Characters used as player icons, for the snakes' heads. Assigned in the order
 # the players join the game. For more characters, see:
-# alanflavell.org.uk/unicode/unidata25.html and unicode-table.com/
+# alanflavell.org.uk/unicode/unidata25.html and unicode-table.com
 PLAYER_ICONS = [
     u'\N{UMBRELLA}',
     '$',
@@ -21,11 +21,13 @@ PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
 # Characters used to render the various items in the game world.
 BLOCK_CHARACTERS = {
-  _B.PLAYER_TAIL: u'\N{DARK SHADE}',
-  _B.WALL: u'\N{FULL BLOCK}',
-  _B.ROCKET: u'\N{WHITE STAR}',
+  _B.PLAYER_TAIL: u'\N{Dark Shade}',
+  _B.WALL: u'\N{Full Block}',
+  _B.ROCKET: u'\N{White Star}',
   _B.AMMO: u'\N{Tamil Sign Visarga}',
-  _B.MINE: u'\N{REFERENCE MARK}',
+  _B.MINE: u'\N{Reference Mark}',
+  _B.ROCK: u'\N{Black Shogi Piece}',
+  _B.TREE: u'\N{Apl Functional Symbol Delta Stile}',
 }
 # A fallback for block types with no other character assigned.
 DEFAULT_BLOCK_CHARACTER = '?'
@@ -34,7 +36,7 @@ DEFAULT_BLOCK_CHARACTER = '?'
 # Colors listed with the different block types to which they apply. (Other
 # types are rendered white.)
 BLOCK_FOREGROUNDS = {
-  curses.COLOR_GREEN: (_B.WALL,),
+  curses.COLOR_GREEN: (_B.WALL, _B.TREE),
   curses.COLOR_MAGENTA: (_B.MINE, _B.ROCKET),
 }
 BG_COLOR = curses.COLOR_BLACK
@@ -76,8 +78,8 @@ MOVE_KEYS = (
 )
 # List of the action keys (to start the game or shoot), in player order.
 ACTION_KEYS = (
-    ord('`'),
-    ord('\\'),
+    ord(' '),
+    ord(';'),
 )
 
 
