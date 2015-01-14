@@ -1,80 +1,28 @@
+#!/usr/bin/env python
+"""A Nuke Snake client, for user interaction to play the game.
+
+The client can be standalone, or communicate to a networked server."""
+
+import argparse
 import curses
 import locale
 import random
 import time
 
-import config
+import client_config
 import common
 import messages_pb2
 import server
 
 
-_B = messages_pb2.Block
-_UPDATE_INTERVAL = 1.0 / 120.0
-# alanflavell.org.uk/unicode/unidata25.html and unicode-table.com/
-_PLAYER_ICONS = [
-    u'\N{UMBRELLA}',
-    '$',
-    u'\N{Circled Dot Operator}',
-    u'\N{Ohm Sign}',
-]
-_PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
-_BLOCK_CHARACTERS = {
-  _B.PLAYER_TAIL: u'\N{DARK SHADE}',
-  _B.WALL: u'\N{FULL BLOCK}',
-  _B.ROCKET: u'\N{WHITE STAR}',
-  _B.AMMO: u'\N{Tamil Sign Visarga}',
-  _B.MINE: u'\N{REFERENCE MARK}',
-}
-_DEFAULT_BLOCK_CHARACTER = '?'
-_BLOCK_FOREGROUNDS = {
-  curses.COLOR_GREEN: (_B.WALL,),
-  curses.COLOR_MAGENTA: (_B.MINE, _B.ROCKET),
-}
-_BG_COLOR = curses.COLOR_BLACK
-_PLAYER_COLORS = (
-  curses.COLOR_CYAN,
-  curses.COLOR_RED,
-  curses.COLOR_YELLOW,
-  curses.COLOR_WHITE,
-)
-
-
-_MOVE_KEYS = (
-    {
-       ord('q'): (-1, -1),
-       ord('w'): (0, -1),
-       ord('e'): (1, -1),
-       ord('a'): (-1, 0),
-       ord('s'): (0, 1),
-       ord('d'): (1, 0),
-       ord('z'): (-1, 1),
-       ord('x'): (0, 1),
-       ord('c'): (1, 1),
-    },
-    {
-       ord('u'): (-1, -1),
-       ord('i'): (0, -1),
-       ord('o'): (1, -1),
-       ord('j'): (-1, 0),
-       ord('k'): (0, 1),
-       ord('l'): (1, 0),
-       ord('m'): (-1, 1),
-       ord(','): (0, 1),
-       ord('.'): (1, 1),
-    },
-)
-_MAX_LOCAL_PLAYERS = len(_MOVE_KEYS)
-_ACTION_KEYS = (
-    ord('`'),
-    ord('\\'),
-)
-assert _MAX_LOCAL_PLAYERS == len(_ACTION_KEYS)
+_MAX_LOCAL_PLAYERS = len(client_config.MOVE_KEYS)
+assert _MAX_LOCAL_PLAYERS == len(client_config.ACTION_KEYS)
 
 
 class Client:
-  def __init__(self, game_server):
+  def __init__(self, game_server, update_server):
     self._game_server = game_server
+    self._update_server = update_server
     self._players_secret_and_info = []
     self._local_player_ids = set()
     self._player_info_by_id = {}
@@ -109,13 +57,13 @@ class Client:
     self._SetUpCurses(window)
 
     while True:
-      time.sleep(_UPDATE_INTERVAL)
+      time.sleep(client_config.UPDATE_INTERVAL_SEC)
 
       key_code = window.getch()
       curses.flushinp()
       for i, (secret, info) in enumerate(self._players_secret_and_info):
         self._DoPlayerCommand(i, secret, info, key_code)
-      if config.NO_NETWORK:
+      if self._update_server:
         self._game_server.Update()
 
       if self._UpdateGameState():
@@ -127,23 +75,23 @@ class Client:
     self._window.nodelay(True)
 
     palette_id = 1
-    for fg, block_types in _BLOCK_FOREGROUNDS.iteritems():
+    for fg, block_types in client_config.BLOCK_FOREGROUNDS.iteritems():
       for block_type in block_types:
         self._block_palettes_by_type[block_type] = palette_id
-      curses.init_pair(palette_id, fg, _BG_COLOR)
+      curses.init_pair(palette_id, fg, client_config.BG_COLOR)
       palette_id += 1
-    for color in _PLAYER_COLORS:
-      curses.init_pair(palette_id, color, _BG_COLOR)
+    for color in client_config.PLAYER_COLORS:
+      curses.init_pair(palette_id, color, client_config.BG_COLOR)
       self._player_palettes.append(palette_id)
       palette_id += 1
 
   def _DoPlayerCommand(self, i, secret, info, key_code):
-    x, y = _MOVE_KEYS[i].get(key_code, (0, 0))
+    x, y = client_config.MOVE_KEYS[i].get(key_code, (0, 0))
     if x or y:
       self._game_server.Move(messages_pb2.MoveRequest(
           player_secret=secret,
           move=messages_pb2.Coordinate(x=x, y=y)))
-    if key_code == _ACTION_KEYS[i]:
+    if key_code == client_config.ACTION_KEYS[i]:
       self._game_server.Action(
           messages_pb2.IdentifiedRequest(player_secret=secret))
 
@@ -198,20 +146,23 @@ class Client:
   def _RenderBlock(self, block):
     s = '?'
     s_attr = curses.A_NORMAL
-    if block.type in (_B.PLAYER_HEAD, _B.PLAYER_TAIL):
+    if block.type in (
+        messages_pb2.Block.PLAYER_HEAD, messages_pb2.Block.PLAYER_TAIL):
       palette_id = self._player_palettes[
           block.player_id % len(self._player_palettes)]
     else:
       palette_id = self._block_palettes_by_type.get(block.type)
     if palette_id:
       s_attr += curses.color_pair(palette_id)
-    if block.type == _B.PLAYER_HEAD:
-      s = _PLAYER_ICONS[block.player_id % len(_PLAYER_ICONS)]
+    if block.type == messages_pb2.Block.PLAYER_HEAD:
+      s = client_config.PLAYER_ICONS[
+          block.player_id % len(client_config.PLAYER_ICONS)]
       if (self._game_state.stage != messages_pb2.GameState.ROUND
           and block.player_id in self._local_player_ids):
         s_attr += curses.A_BLINK
     else:
-      s = _BLOCK_CHARACTERS.get(block.type, _DEFAULT_BLOCK_CHARACTER)
+      s = client_config.BLOCK_CHARACTERS.get(
+          block.type, client_config.DEFAULT_BLOCK_CHARACTER)
     self._window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
 
 
@@ -220,8 +171,20 @@ class Client:
     self._window.addstr(h / 2 + y_offset, w / 2 - len(msg) / 2, msg)
 
 
-def Main():
-  if config.NO_NETWORK:
+summary_line, _, main_doc = __doc__.partition('\n\n')
+parser = argparse.ArgumentParser(
+    description=summary_line,
+    epilog=main_doc,
+    formatter_class=argparse.RawDescriptionHelpFormatter)
+parser.add_argument(
+    '-s', '--standalone', action='store_true',
+    help='Run without a network server, all players on the same keyboard.')
+
+
+if __name__ == '__main__':
+  args = parser.parse_args()
+
+  if args.standalone:
     game_server = server.Server()
   else:
     import Pyro4
@@ -230,14 +193,14 @@ def Main():
 
   locale.setlocale(locale.LC_ALL, '')
 
-  client = Client(game_server)
+  client = Client(game_server, args.standalone)
   names = []
   while len(names) < _MAX_LOCAL_PLAYERS:
     i = len(names)
     print (
         'Player %d action key is %r, move keys are '
-        % (i + 1, chr(_ACTION_KEYS[i]))),
-    move_keys = _MOVE_KEYS[i].items()
+        % (i + 1, chr(client_config.ACTION_KEYS[i]))),
+    move_keys = client_config.MOVE_KEYS[i].items()
     move_keys.sort(
         key=lambda key_and_coord: (key_and_coord[1][1], key_and_coord[1][0]))
     for c, _ in move_keys:
@@ -251,9 +214,7 @@ def Main():
 
   try:
     curses.wrapper(Client.CursesWrappedLoop, client)
+  except KeyboardInterrupt:
+    print 'Quitting.'
   finally:
     client.UnregisterAll()
-
-
-if __name__ == '__main__':
-  Main()
