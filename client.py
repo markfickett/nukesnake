@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 """A Nuke Snake client, for user interaction to play the game.
 
+Examples:
+  # Connect to an available network server.
+  %(prog)s
+  # Run without a network server.
+  %(prog)s --standalone -x 200 -y 50
+
 The client can be standalone, or communicate to a networked server."""
 
 import argparse
@@ -171,21 +177,20 @@ class Client:
     self._window.addstr(h / 2 + y_offset, w / 2 - len(msg) / 2, msg)
 
 
-summary_line, _, main_doc = __doc__.partition('\n\n')
-parser = argparse.ArgumentParser(
-    description=summary_line,
-    epilog=main_doc,
-    formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument(
-    '-s', '--standalone', action='store_true',
-    help='Run without a network server, all players on the same keyboard.')
-
-
 if __name__ == '__main__':
+  summary_line, _, main_doc = __doc__.partition('\n\n')
+  parser = argparse.ArgumentParser(
+      description=summary_line,
+      epilog=main_doc,
+      formatter_class=argparse.RawDescriptionHelpFormatter)
+  parser.add_argument(
+      '-s', '--standalone', action='store_true',
+      help='Run without a network server, all players on the same keyboard.')
+  server.AddGameServerArgs(parser)
   args = parser.parse_args()
 
   if args.standalone:
-    game_server = server.Server()
+    game_server = server.Server(args.width, args.height)
   else:
     import Pyro4
     common.RegisterProtoSerialization()
