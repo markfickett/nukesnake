@@ -1,3 +1,8 @@
+"""Random smoothed height-map generation, for terrain.
+
+Drawing inspiration from redblobgames.com/articles/noise/introduction.html .
+"""
+
 import random
 
 import messages_pb2
