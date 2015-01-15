@@ -50,3 +50,10 @@ def _TestSerialization():
   bytes, unused_compressed_status = serializer.serializeData(p)
   p2 = serializer.deserializeData(bytes)
   assert p.player_name == p2.player_name
+
+
+def MakeGrid(size):
+  grid = []
+  for x in range(size.x):
+    grid.append([None] * size.y)
+  return grid
