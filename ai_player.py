@@ -32,6 +32,12 @@ class Player:
       grid[block.pos.x][block.pos.y] = block
       if block.player_id == self._info.player_id:
         player_head = block
+    if not player_head:
+      raise RuntimeError(
+          'AI could not find its own head.\n%s\n%s' % (
+              self._info,
+              [b for b in new_game_state.block
+               if b.type == messages_pb2.Block.PLAYER_HEAD]))
 
     nearby = []
     for dx in xrange(-_VIEW_DIST, _VIEW_DIST + 1):
