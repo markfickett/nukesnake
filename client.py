@@ -15,6 +15,7 @@ import locale
 import random
 import time
 
+import ai_player
 import client_config
 import common
 import messages_pb2
@@ -31,6 +32,7 @@ class Client:
     self._update_server = update_server
     self._players_secret_and_info = []
     self._local_player_ids = set()
+    self._ai_players_by_id = {}
     self._player_info_by_id = {}
 
     self._window = None
@@ -39,12 +41,15 @@ class Client:
 
     self._game_state = None
 
-  def Register(self, name):
+  def Register(self, name, ai=False):
     secret = str(random.random())
     resp = self._game_server.Register(messages_pb2.RegisterRequest(
         player_secret=secret, player_name=name))
     self._players_secret_and_info.append((secret, resp.player))
     self._local_player_ids.add(resp.player.player_id)
+    if ai:
+      self._ai_players_by_id[resp.player.player_id] = ai_player.Player(
+          secret, resp.player)
     self._player_info_by_id[resp.player.player_id] = resp.player
 
   def UnregisterAll(self):
@@ -53,6 +58,7 @@ class Client:
           messages_pb2.IdentifiedRequest(player_secret=secret))
     self._players_secret_and_info = []
     self._local_player_ids = set()
+    self._ai_players_by_id = {}
     self._player_info_by_id = {}
 
   @staticmethod
@@ -67,13 +73,18 @@ class Client:
 
       key_code = window.getch()
       curses.flushinp()
-      for i, (secret, info) in enumerate(self._players_secret_and_info):
-        self._DoPlayerCommand(i, secret, info, key_code)
+      local_player_index = 0
+      for secret, info in self._players_secret_and_info:
+        if info.player_id not in self._ai_players_by_id:
+          self._DoPlayerCommand(local_player_index, secret, info, key_code)
+          local_player_index += 1
       if self._update_server:
         self._game_server.Update()
 
       if self._UpdateGameState():
         self._Repaint()
+        for ai_player in self._ai_players_by_id.itervalues():
+          ai_player.UpdateAndDoCommands(self._game_state, self._game_server)
 
   def _SetUpCurses(self, window):
     self._window = window
@@ -164,7 +175,8 @@ class Client:
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
       if (self._game_state.stage != messages_pb2.GameState.ROUND
-          and block.player_id in self._local_player_ids):
+          and block.player_id in self._local_player_ids
+          and block.player_id not in self._ai_players_by_id):
         s_attr += curses.A_BLINK
     else:
       s = client_config.BLOCK_CHARACTERS.get(
@@ -186,6 +198,9 @@ if __name__ == '__main__':
   parser.add_argument(
       '-s', '--standalone', action='store_true',
       help='Run without a network server, all players on the same keyboard.')
+  parser.add_argument(
+      '-a', '--ai', action='append', default=[],
+      help='Names for AI players to add to the game.')
   server.AddGameServerArgs(parser)
   args = parser.parse_args()
 
@@ -199,6 +214,8 @@ if __name__ == '__main__':
   locale.setlocale(locale.LC_ALL, '')
 
   client = Client(game_server, args.standalone)
+  for ai_name in args.ai:
+    client.Register(ai_name, ai=True)
   names = []
   while len(names) < _MAX_LOCAL_PLAYERS:
     i = len(names)
