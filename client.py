@@ -72,7 +72,6 @@ class Client:
       time.sleep(client_config.UPDATE_INTERVAL_SEC)
 
       key_code = window.getch()
-      curses.flushinp()
       local_player_index = 0
       for secret, info in self._players_secret_and_info:
         if info.player_id not in self._ai_players_by_id:
