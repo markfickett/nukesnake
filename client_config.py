@@ -1,4 +1,4 @@
-"""Client control and behavior configuration."""
+"""Client key controls and behavior configuration."""
 
 import curses
 import messages_pb2
@@ -50,36 +50,28 @@ PLAYER_COLORS = (
 
 
 # Mapping from keys to the direction it will move the player's snake.
-MOVE_KEYS = (
-    # Player 1
-    {
-       ord('q'): (-1, -1),
-       ord('w'): (0, -1),
-       ord('e'): (1, -1),
-       ord('a'): (-1, 0),
-       ord('s'): (0, 1),
-       ord('d'): (1, 0),
-       ord('z'): (-1, 1),
-       ord('x'): (0, 1),
-       ord('c'): (1, 1),
-    },
-    # Player 2
-    {
-       ord('u'): (-1, -1),
-       ord('i'): (0, -1),
-       ord('o'): (1, -1),
-       ord('j'): (-1, 0),
-       ord('k'): (0, 1),
-       ord('l'): (1, 0),
-       ord('m'): (-1, 1),
-       ord(','): (0, 1),
-       ord('.'): (1, 1),
-    },
+_ORDERED_COORDS = (
+    (-1, -1),
+    (0, -1),
+    (1, -1),
+    (-1, 0),
+    (0, 1),
+    (1, 0),
+    (-1, 1),
+    (0, 1),
+    (1, 1),
 )
+MOVE_KEYS = [
+    {ord(k): c for k, c in zip(movement_keys, _ORDERED_COORDS)}
+    for movement_keys in (
+        'qweasdzxc',
+        'uiojklm,.',
+        'rtyfghvbn')]
 # List of the action keys (to start the game or shoot), in player order.
 ACTION_KEYS = (
     ord(' '),
     ord(';'),
+    ord('\\'),
 )
 
 
