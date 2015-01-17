@@ -158,9 +158,9 @@ class Client:
             '%s wins! (score %d)' % (living_info.name, living_info.score))
     self._window.refresh()
 
-
   def _RenderBlock(self, block):
     s = '?'
+    name = None
     s_attr = curses.A_NORMAL
     if block.type in (
         messages_pb2.Block.PLAYER_HEAD, messages_pb2.Block.PLAYER_TAIL):
@@ -174,14 +174,17 @@ class Client:
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
       if (self._game_state.stage != messages_pb2.GameState.ROUND
-          and block.player_id in self._local_player_ids
-          and block.player_id not in self._ai_players_by_id):
-        s_attr += curses.A_BLINK
+          and block.player_id in self._local_player_ids):
+        if block.player_id not in self._ai_players_by_id:
+          s_attr += curses.A_BLINK
+        if self._game_state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
+          name = self._player_info_by_id[block.player_id].name
     else:
       s = client_config.BLOCK_CHARACTERS.get(
           block.type, client_config.DEFAULT_BLOCK_CHARACTER)
     self._window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
-
+    if name is not None:
+      self._window.addstr(block.pos.y, block.pos.x + 2, name, s_attr)
 
   def _RenderMessage(self, msg, y_offset=0):
     h, w = self._window.getmaxyx()
