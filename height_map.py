@@ -29,7 +29,7 @@ def MakeHeightMap(size, min_value, max_value, blur_size=2):
 
 
 if __name__ == '__main__':
-  grid = MakeHeightMap(messages_pb2.Coordinate(x=20, y=70), 0, 20)
+  grid = MakeHeightMap(messages_pb2.Coordinate(x=50, y=200), 0, 30, blur_size=4)
   if False:
     for row in grid:
       for v in row:
@@ -38,11 +38,11 @@ if __name__ == '__main__':
   for row in grid:
     row_str = []
     for v in row:
-      if v >= 13:
+      if v >= 17:
         c = u'\N{FULL BLOCK}'
-      elif v >= 12:
+      elif v >= 16:
         c = u'\N{MEDIUM SHADE}'
-      elif v >= 11:
+      elif v >= 15:
         c = u'\N{LIGHT SHADE}'
       else:
         c = ' '
