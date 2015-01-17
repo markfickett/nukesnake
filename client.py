@@ -184,7 +184,10 @@ class Client:
           block.type, client_config.DEFAULT_BLOCK_CHARACTER)
     self._window.addstr(block.pos.y, block.pos.x, s.encode('utf-8'), s_attr)
     if name is not None:
-      self._window.addstr(block.pos.y, block.pos.x + 2, name, s_attr)
+      name_x = block.pos.x + 2
+      if name_x + len(name) >= self._game_state.size.x:
+        name_x = block.pos.x - (2 + len(name))
+      self._window.addstr(block.pos.y, name_x, name, s_attr)
 
   def _RenderMessage(self, msg, y_offset=0):
     h, w = self._window.getmaxyx()
