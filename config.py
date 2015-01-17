@@ -1,8 +1,9 @@
 WALLS = True
-SPEED = 0.1  # Larger numbers are slower.
+SPEED = 0.08  # Larger numbers are slower.
 STARTING_TAIL_LENGTH = 50
 INFINITE_AMMO = False
 AMMO_RARITY = 400  # 1 in this many blocks is ammo.
 MINES = True
-MINE_RARITY = 100
+MINE_CLUSTERS = True  # Use terrain generation to place mines.
+MINE_RARITY = 100  # Ignored if MINE_CLUSTERS is on.
 TERRAIN = True
