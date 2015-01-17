@@ -36,7 +36,7 @@ class Player:
       raise RuntimeError(
           'AI could not find its own head.\n%s\n%s' % (
               self._info,
-              [b for b in new_game_state.block
+              [str(b).replace('\n', ' ') for b in new_game_state.block
                if b.type == messages_pb2.Block.PLAYER_HEAD]))
 
     nearby = []
