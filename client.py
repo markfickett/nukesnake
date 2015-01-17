@@ -213,8 +213,6 @@ if __name__ == '__main__':
   locale.setlocale(locale.LC_ALL, '')
 
   client = Client(game_server, args.standalone)
-  for ai_name in args.ai:
-    client.Register(ai_name, ai=True)
   names = []
   while len(names) < _MAX_LOCAL_PLAYERS:
     i = len(names)
@@ -232,6 +230,8 @@ if __name__ == '__main__':
       break
     names.append(name)
     client.Register(name)
+  for ai_name in args.ai:
+    client.Register(ai_name, ai=True)
 
   try:
     curses.wrapper(Client.CursesWrappedLoop, client)
