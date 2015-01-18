@@ -26,7 +26,7 @@ _MAX_LOCAL_PLAYERS = len(client_config.MOVE_KEYS)
 assert _MAX_LOCAL_PLAYERS == len(client_config.ACTION_KEYS)
 
 
-class Client:
+class Client(object):
   def __init__(self, game_server, update_server):
     self._game_server = game_server
     self._update_server = update_server

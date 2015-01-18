@@ -12,7 +12,7 @@ _DESIRABLE_BLOCKS = frozenset((
 ))
 
 
-class Player:
+class Player(object):
   def __init__(self, secret, player_info):
     self._secret = secret
     self._info = player_info
