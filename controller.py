@@ -338,8 +338,8 @@ class Controller(object):
         break
     if secret:
       del self._player_heads_by_secret[secret]
-    # will no longer update, already in statics
-    del self._player_tails_by_id[player_id]
+    # Tail blocks will no longer update, but are already in statics.
+    self._player_tails_by_id.pop(player_id, None)
     for other_secret, info in self._player_infos_by_secret.iteritems():
       if secret == other_secret:
         # If this is after Unregister, there may be no PlayerInfo for the
