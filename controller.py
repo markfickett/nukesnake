@@ -98,7 +98,7 @@ class Controller(object):
     info = messages_pb2.PlayerInfo(
         player_id=self._next_player_id,
         name=req.player_name,
-        alive=True,
+        alive=self._stage == messages_pb2.GameState.COLLECT_PLAYERS,
         score=0)
     self._player_infos_by_secret[req.player_secret] = info
     self._next_player_id += 1
@@ -257,7 +257,7 @@ class Controller(object):
     tail_expiry = _HEAD_MOVE_INTERVAL * (
         _STARTING_TAIL_LENGTH + self._tick / 50)
     for tails in self._player_tails_by_id.values():
-      while self._tick - tails[0].created_tick >= tail_expiry:
+      while tails and (self._tick - tails[0].created_tick >= tail_expiry):
         self._static_blocks_grid[tails[0].pos.x][tails[0].pos.y] = None
         tails.pop(0)
 
