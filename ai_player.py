@@ -2,11 +2,12 @@
 
 
 import common
+import config
 import messages_pb2
 import random
 
 
-_VIEW_DIST = 1
+_VIEW_DIST = 3
 _DESIRABLE_BLOCKS = frozenset((
     messages_pb2.Block.AMMO,
 ))
@@ -38,6 +39,7 @@ class Player(object):
               self._info,
               [str(b).replace('\n', ' ') for b in new_game_state.block
                if b.type == messages_pb2.Block.PLAYER_HEAD]))
+    default_dir = (player_head.direction.x, player_head.direction.y)
 
     nearby = []
     for dx in xrange(-_VIEW_DIST, _VIEW_DIST + 1):
@@ -48,22 +50,46 @@ class Player(object):
             (player_head.pos.y + dy) % new_game_state.size.y])
       nearby.append(row)
 
+    preferred_directions = set()
+    clear_directions = set()
     safe_directions = set()
     for i in xrange(-1, 2):
       for j in xrange(-1, 2):
-        block = nearby[_VIEW_DIST + i][_VIEW_DIST + j]
         if i == 0 and j == 0:
           continue
-        if block is None or block.type in _DESIRABLE_BLOCKS:
-          safe_directions.add((i, j))
+        clear_in_view = True
+        for dist in range(1, _VIEW_DIST + 1):
+          block = nearby[_VIEW_DIST + i * dist][_VIEW_DIST + j * dist]
+          if block is None:
+            if dist == 1:
+              safe_directions.add((i, j))
+          elif (block.type in _DESIRABLE_BLOCKS or
+              (block.type == messages_pb2.Block.ROCKET and
+               block.direction.x == i and block.direction.y == j)):
+            preferred_directions.add((i, j))
+          else:
+            clear_in_view = False
+            break
+        if clear_in_view:
+          clear_directions.add((i, j))
+    preferred_directions.intersection_update(safe_directions)
 
-    default_dir = (player_head.direction.x, player_head.direction.y)
-    if safe_directions and (default_dir not in safe_directions):
-      x, y = random.choice(list(safe_directions))
+    new_dir = default_dir
+    shoot = not safe_directions
+    for possible_directions, should_shoot in (
+        (preferred_directions, False),
+        (clear_directions, False),
+        (safe_directions, True)):
+      if possible_directions:
+        if default_dir not in possible_directions:
+          new_dir = random.choice(list(possible_directions))
+        shoot = should_shoot
+        break
+    if new_dir != default_dir:
       game_server.Move(messages_pb2.MoveRequest(
           player_secret=self._secret,
-          move=messages_pb2.Coordinate(x=x, y=y)))
+          move=messages_pb2.Coordinate(x=new_dir[0], y=new_dir[1])))
 
-    if self._info.inventory:
+    if (config.INFINITE_AMMO or self._info.inventory) and shoot:
       game_server.Action(messages_pb2.IdentifiedRequest(
           player_secret=self._secret))
