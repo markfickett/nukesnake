@@ -18,8 +18,8 @@ import time
 import ai_player
 import client_config
 import common
+import controller
 import messages_pb2
-import server
 
 
 _MAX_LOCAL_PLAYERS = len(client_config.MOVE_KEYS)
@@ -206,11 +206,11 @@ if __name__ == '__main__':
   parser.add_argument(
       '-a', '--ai', action='append', default=[],
       help='Names for AI players to add to the game.')
-  server.AddGameServerArgs(parser)
+  controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
   if args.standalone:
-    game_server = server.Server(args.width, args.height)
+    game_server = controller.Controller(args.width, args.height)
   else:
     import Pyro4
     common.RegisterProtoSerialization()
