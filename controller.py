@@ -6,12 +6,11 @@ import itertools
 import random
 import time
 
-import Pyro4
-
 import common
 import config
 import height_map
-import messages_pb2  # generate with: protoc --python_out=. messages.proto
+import game_pb2  # protoc --python_out=. *.proto
+import network_pb2
 
 
 UPDATE_INTERVAL = max(0.05, config.SPEED)
@@ -24,12 +23,12 @@ _AMMO_RARITY = max(1, config.AMMO_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
-_B = messages_pb2.Block
+_B = game_pb2.Block
 
 
 class Controller(object):
   def __init__(self, width, height):
-    self._size = messages_pb2.Coordinate(
+    self._size = game_pb2.Coordinate(
         x=max(4, width),
         y=max(4, height))
 
@@ -38,13 +37,13 @@ class Controller(object):
     self._player_infos_by_secret = {}
 
     self._dirty = True
+    self._state_hash = 0
     self._stage = None
     self._start_requested = False
-    self._state_hash = 0
     self._last_update = time.time()
     self._tick = 0
 
-    self._SetStage(messages_pb2.GameState.COLLECT_PLAYERS)
+    self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
 
   def _SetStage(self, stage):
     if self._stage == stage:
@@ -54,7 +53,7 @@ class Controller(object):
     self._dirty = True
     self._start_requested = False
 
-    if self._stage == messages_pb2.GameState.COLLECT_PLAYERS:
+    if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       # When preparing for a new round to start, reinitialize state and
       # reset all players to alive.
       self._rockets = []
@@ -65,46 +64,46 @@ class Controller(object):
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = True
 
-  def GetGameState(self, req):
+  def GetGameState(self, last_hash):
     if self._dirty:
       environment_blocks = []
-      if self._stage != messages_pb2.GameState.COLLECT_PLAYERS:
+      if self._stage != game_pb2.Stage.COLLECT_PLAYERS:
         for row in self._static_blocks_grid:
           environment_blocks += filter(bool, row)
         environment_blocks += self._rockets
-      self._client_facing_state = messages_pb2.GameState(
-          hash=self._state_hash,
+      self._client_facing_state = network_pb2.Response(
           size=self._size,
           player_info=self._player_infos_by_secret.values(),
           block=environment_blocks + self._player_heads_by_secret.values(),
           stage=self._stage)
-      self._state_hash += 1
       self._dirty = False
+      self._state_hash += 1
 
-    return self._client_facing_state if req.hash != self._state_hash else None
+    return (self._state_hash, None) if last_hash == self._state_hash else (
+        self._state_hash, self._client_facing_state)
 
-  def Register(self, req):
-    if req.player_secret in self._player_infos_by_secret:
+  def Register(self, secret, name):
+    if secret in self._player_infos_by_secret:
       raise RuntimeError(
           'Player %s already registered as %s.' % (
-              req.player_secret,
-              self._player_infos_by_secret[req.player_secret]))
-    if not req.player_name:
-      raise RuntimeError('Player name %r not allowed!' % req.player_name)
-    if req.player_name in [
+              secret,
+              self._player_infos_by_secret[secret]))
+    if not name:
+      raise RuntimeError('Player name %r not allowed!' % name)
+    if name in [
         info.name for info in self._player_infos_by_secret.values()]:
-      raise RuntimeError('Player name %s is already taken.' % req.player_name)
+      raise RuntimeError('Player name %s is already taken.' % name)
 
-    info = messages_pb2.PlayerInfo(
+    info = game_pb2.PlayerInfo(
         player_id=self._next_player_id,
-        name=req.player_name,
-        alive=self._stage == messages_pb2.GameState.COLLECT_PLAYERS,
+        name=name,
+        alive=self._stage == game_pb2.Stage.COLLECT_PLAYERS,
         score=0)
-    self._player_infos_by_secret[req.player_secret] = info
+    self._player_infos_by_secret[secret] = info
     self._next_player_id += 1
-    if self._stage == messages_pb2.GameState.COLLECT_PLAYERS:
-      self._AddPlayerHeadResetPos(req.player_secret, info)
-    return messages_pb2.RegisterResponse(player=info)
+    if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
+      self._AddPlayerHeadResetPos(secret, info)
+    return info.player_id
 
   def _AddPlayerHeadResetPos(self, player_secret, player_info):
     head = self._player_heads_by_secret.get(player_secret)
@@ -115,16 +114,15 @@ class Controller(object):
       head = _B(
           type=_B.PLAYER_HEAD,
           pos=starting_pos,
-          direction=messages_pb2.Coordinate(x=1, y=0),
+          direction=game_pb2.Coordinate(x=1, y=0),
           player_id=player_info.player_id,
           created_tick=self._tick)
       self._player_heads_by_secret[player_secret] = head
     self._dirty = True
 
-  @Pyro4.oneway
-  def Unregister(self, req):
-    self._player_infos_by_secret.pop(req.player_secret, None)
-    head = self._player_heads_by_secret.pop(req.player_secret, None)
+  def Unregister(self, secret):
+    self._player_infos_by_secret.pop(secret, None)
+    head = self._player_heads_by_secret.pop(secret, None)
     if head:
       self._KillPlayer(head.player_id)
       self._dirty = True
@@ -134,10 +132,10 @@ class Controller(object):
     def _Block(block_type, x, y):
       return _B(
           type=block_type,
-          pos=messages_pb2.Coordinate(x=x, y=y))
+          pos=game_pb2.Coordinate(x=x, y=y))
 
     if config.TERRAIN:
-      hm = height_map.MakeHeightMap(self._size, 0, 20)
+      hm = height_map.MakeHeightMap(self._size.x, self._size.y, 0, 20)
       for i in xrange(self._size.x):
         for j in xrange(self._size.y):
           if hm[i][j] >= 13:
@@ -160,7 +158,8 @@ class Controller(object):
 
     if config.MINES:
       if config.MINE_CLUSTERS:
-        hm = height_map.MakeHeightMap(self._size, 0, 30, blur_size=4)
+        hm = height_map.MakeHeightMap(
+            self._size.x, self._size.y, 0, 30, blur_size=4)
         for i in xrange(self._size.x):
           for j in xrange(self._size.y):
             if hm[i][j] >= 17 and self._static_blocks_grid[i][j] is None:
@@ -170,28 +169,26 @@ class Controller(object):
           pos = _RandomPosWithin(self._size)
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
-  @Pyro4.oneway
-  def Move(self, req):
-    if abs(req.move.x) > 1 or abs(req.move.y) > 1:
-      raise RuntimeError('Illegal move %s with value > 1.' % req.move)
-    if not (req.move.x or req.move.y):
+  def Move(self, secret, direction):
+    if abs(direction.x) > 1 or abs(direction.y) > 1:
+      raise RuntimeError('Illegal move %s with value > 1.' % direction)
+    if not (direction.x or direction.y):
       raise RuntimeError('Cannot stand still.')
-    player_head = self._player_heads_by_secret.get(req.player_secret)
+    player_head = self._player_heads_by_secret.get(secret)
     if player_head:
-      player_head.direction.MergeFrom(req.move)
+      player_head.direction.MergeFrom(direction)
 
-  @Pyro4.oneway
-  def Action(self, req):
-    if self._stage == messages_pb2.GameState.COLLECT_PLAYERS:
+  def Action(self, secret):
+    if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       if len(self._player_infos_by_secret) > 1:
         self._start_requested = True
-    elif self._stage == messages_pb2.GameState.ROUND:
-      player_head = self._player_heads_by_secret.get(req.player_secret)
+    elif self._stage == game_pb2.Stage.ROUND:
+      player_head = self._player_heads_by_secret.get(secret)
       if player_head:
         if config.INFINITE_AMMO:
           has_rocket = True
         else:
-          info = self._player_infos_by_secret[req.player_secret]
+          info = self._player_infos_by_secret[secret]
           if info.inventory and info.inventory[-1] == _B.ROCKET:
             new_inventory = info.inventory[:-1]
             del info.inventory[:]
@@ -204,7 +201,7 @@ class Controller(object):
               player_head.pos, player_head.direction, player_head.player_id)
 
   def _AddRocket(self, origin, direction, player_id):
-    rocket_pos = messages_pb2.Coordinate(
+    rocket_pos = game_pb2.Coordinate(
         x=(origin.x + direction.x) % self._size.x,
         y=(origin.y + direction.y) % self._size.y)
     self._rockets.append(_B(
@@ -219,22 +216,23 @@ class Controller(object):
     t = time.time()
     dt = t - self._last_update
     if dt < UPDATE_INTERVAL:
-      return
+      return False
     self._last_update = t
 
-    if self._stage == messages_pb2.GameState.COLLECT_PLAYERS:
+    if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       if self._start_requested:
-        self._SetStage(messages_pb2.GameState.ROUND_START)
-    elif self._stage == messages_pb2.GameState.ROUND_START:
+        self._SetStage(game_pb2.Stage.ROUND_START)
+    elif self._stage == game_pb2.Stage.ROUND_START:
       if self._pause_ticks > _PAUSE_TICKS:
-        self._SetStage(messages_pb2.GameState.ROUND)
-    elif self._stage == messages_pb2.GameState.ROUND:
+        self._SetStage(game_pb2.Stage.ROUND)
+    elif self._stage == game_pb2.Stage.ROUND:
       self._Tick()
-    elif self._stage == messages_pb2.GameState.ROUND_END:
+    elif self._stage == game_pb2.Stage.ROUND_END:
       if self._pause_ticks > _PAUSE_TICKS:
-        self._SetStage(messages_pb2.GameState.COLLECT_PLAYERS)
+        self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
     self._tick += 1
     self._pause_ticks += 1
+    return True
 
   def _Tick(self):
     if self._tick % _HEAD_MOVE_INTERVAL == 0:
@@ -273,7 +271,7 @@ class Controller(object):
 
     if len(filter(
         lambda p: p.alive, self._player_infos_by_secret.values())) <= 1:
-      self._SetStage(messages_pb2.GameState.ROUND_END)
+      self._SetStage(game_pb2.Stage.ROUND_END)
 
     self._dirty = True
 
@@ -314,7 +312,7 @@ class Controller(object):
               if i == 0 and j == 0:
                 continue
               self._AddRocket(
-                  b.pos, messages_pb2.Coordinate(x=i, y=j), b.player_id)
+                  b.pos, game_pb2.Coordinate(x=i, y=j), b.player_id)
 
   def _CheckIsPlayerHeadAddAmmo(self, head, ammo):
     if not (
@@ -350,7 +348,7 @@ class Controller(object):
 
 
 def _RandomPosWithin(world_size):
-  return messages_pb2.Coordinate(
+  return game_pb2.Coordinate(
       x=random.randint(1, world_size.x - 2),
       y=random.randint(1, world_size.y - 2))
 

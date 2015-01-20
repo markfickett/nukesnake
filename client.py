@@ -17,9 +17,9 @@ import time
 
 import ai_player
 import client_config
-import common
 import controller
-import messages_pb2
+import game_pb2
+import network
 
 
 _MAX_LOCAL_PLAYERS = len(client_config.MOVE_KEYS)
@@ -27,9 +27,8 @@ assert _MAX_LOCAL_PLAYERS == len(client_config.ACTION_KEYS)
 
 
 class Client(object):
-  def __init__(self, game_server, update_server):
+  def __init__(self, game_server):
     self._game_server = game_server
-    self._update_server = update_server
     self._players_secret_and_info = []
     self._local_player_ids = set()
     self._ai_players_by_id = {}
@@ -43,23 +42,13 @@ class Client(object):
 
   def Register(self, name, ai=False):
     secret = str(random.random())
-    resp = self._game_server.Register(messages_pb2.RegisterRequest(
-        player_secret=secret, player_name=name))
-    self._players_secret_and_info.append((secret, resp.player))
-    self._local_player_ids.add(resp.player.player_id)
+    player_id = self._game_server.Register(secret, name)
+    info = game_pb2.PlayerInfo(player_id=player_id, name=name)
+    self._players_secret_and_info.append((secret, info))
+    self._local_player_ids.add(player_id)
     if ai:
-      self._ai_players_by_id[resp.player.player_id] = ai_player.Player(
-          secret, resp.player)
-    self._player_info_by_id[resp.player.player_id] = resp.player
-
-  def UnregisterAll(self):
-    for secret, _ in self._players_secret_and_info:
-      self._game_server.Unregister(
-          messages_pb2.IdentifiedRequest(player_secret=secret))
-    self._players_secret_and_info = []
-    self._local_player_ids = set()
-    self._ai_players_by_id = {}
-    self._player_info_by_id = {}
+      self._ai_players_by_id[player_id] = ai_player.Player(secret, info)
+    self._player_info_by_id[player_id] = info
 
   @staticmethod
   def CursesWrappedLoop(window, client):
@@ -77,8 +66,6 @@ class Client(object):
         if info.player_id not in self._ai_players_by_id:
           self._DoPlayerCommand(local_player_index, secret, info, key_code)
           local_player_index += 1
-      if self._update_server:
-        self._game_server.Update()
 
       if self._UpdateGameState():
         self._Repaint()
@@ -104,21 +91,15 @@ class Client(object):
   def _DoPlayerCommand(self, i, secret, info, key_code):
     x, y = client_config.MOVE_KEYS[i].get(key_code, (0, 0))
     if x or y:
-      self._game_server.Move(messages_pb2.MoveRequest(
-          player_secret=secret,
-          move=messages_pb2.Coordinate(x=x, y=y)))
+      self._game_server.Move(secret, game_pb2.Coordinate(x=x, y=y))
     if key_code == client_config.ACTION_KEYS[i]:
-      self._game_server.Action(
-          messages_pb2.IdentifiedRequest(player_secret=secret))
+      self._game_server.Action(secret)
 
   def _UpdateGameState(self):
-    state_req = messages_pb2.GetGameStateRequest()
-    if self._game_state is not None:
-      state_req.hash = self._game_state.hash
-    state = self._game_server.GetGameState(state_req)
-    if not state:
+    states = self._game_server.GetUpdates()
+    if not states:
       return False
-    self._game_state = state
+    self._game_state = states[-1]
     for info in self._game_state.player_info:
       if info.player_id in self._player_info_by_id:
         self._player_info_by_id[info.player_id].MergeFrom(info)
@@ -137,9 +118,9 @@ class Client(object):
     self._window.erase()
     for block in self._game_state.block:
       self._RenderBlock(block)
-    if self._game_state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
+    if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
       self._RenderMessage('Press action to start.')
-    elif self._game_state.stage == messages_pb2.GameState.ROUND_START:
+    elif self._game_state.stage == game_pb2.Stage.ROUND_START:
       self._RenderMessage('Ready...')
     else:
       for i, (_, local_info) in enumerate(self._players_secret_and_info):
@@ -147,7 +128,7 @@ class Client(object):
           self._RenderMessage(
               '%s Dies (score %d)' % (local_info.name, local_info.score),
               y_offset=-(i + 1))
-    if self._game_state.stage == messages_pb2.GameState.ROUND_END:
+    if self._game_state.stage == game_pb2.Stage.ROUND_END:
       living_info = None
       for info in self._game_state.player_info:
         if info.alive:
@@ -163,21 +144,21 @@ class Client(object):
     name = None
     s_attr = curses.A_NORMAL
     if block.type in (
-        messages_pb2.Block.PLAYER_HEAD, messages_pb2.Block.PLAYER_TAIL):
+        game_pb2.Block.PLAYER_HEAD, game_pb2.Block.PLAYER_TAIL):
       palette_id = self._player_palettes[
           block.player_id % len(self._player_palettes)]
     else:
       palette_id = self._block_palettes_by_type.get(block.type)
     if palette_id:
       s_attr += curses.color_pair(palette_id)
-    if block.type == messages_pb2.Block.PLAYER_HEAD:
+    if block.type == game_pb2.Block.PLAYER_HEAD:
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
-      if (self._game_state.stage != messages_pb2.GameState.ROUND
+      if (self._game_state.stage != game_pb2.Stage.ROUND
           and block.player_id in self._local_player_ids):
         if block.player_id not in self._ai_players_by_id:
           s_attr += curses.A_BLINK
-        if self._game_state.stage == messages_pb2.GameState.COLLECT_PLAYERS:
+        if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
           name = self._player_info_by_id[block.player_id].name
     else:
       s = client_config.BLOCK_CHARACTERS.get(
@@ -210,15 +191,13 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   if args.standalone:
-    game_server = controller.Controller(args.width, args.height)
+    raise NotImplementedError()
   else:
-    import Pyro4
-    common.RegisterProtoSerialization()
-    game_server = Pyro4.Proxy('PYRONAME:%s' % common.SERVER_URI_NAME)
+    game_server = network.Client(network.HOST, network.PORT)
 
   locale.setlocale(locale.LC_ALL, '')
 
-  client = Client(game_server, args.standalone)
+  client = Client(game_server)
   names = []
   while len(names) < _MAX_LOCAL_PLAYERS:
     i = len(names)
@@ -243,5 +222,3 @@ if __name__ == '__main__':
     curses.wrapper(Client.CursesWrappedLoop, client)
   except KeyboardInterrupt:
     print 'Quitting.'
-  finally:
-    client.UnregisterAll()

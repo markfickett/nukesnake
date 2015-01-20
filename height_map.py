@@ -5,31 +5,29 @@ Drawing inspiration from redblobgames.com/articles/noise/introduction.html .
 
 import random
 
-import messages_pb2
 
-
-def MakeHeightMap(size, min_value, max_value, blur_size=2):
+def MakeHeightMap(width, height, min_value, max_value, blur_size=2):
   rand_vals = []
   smoothed = []
-  for _ in xrange(size.x):
+  for _ in xrange(width):
     row = []
-    for _ in xrange(size.y):
+    for _ in xrange(height):
       row.append(random.randint(min_value, max_value))
     rand_vals.append(row)
-    smoothed.append([None] * size.y)
+    smoothed.append([None] * height)
   area = (2 * blur_size + 1) ** 2
-  for x in xrange(size.x):
-    for y in xrange(size.y):
+  for x in xrange(width):
+    for y in xrange(height):
       v = 0
       for i in xrange(-blur_size, blur_size + 1):
         for j in xrange(-blur_size, blur_size + 1):
-          v += rand_vals[(x + i) % size.x][(y + j) % size.y]
+          v += rand_vals[(x + i) % width][(y + j) % height]
       smoothed[x][y] = v / area
   return smoothed
 
 
 if __name__ == '__main__':
-  grid = MakeHeightMap(messages_pb2.Coordinate(x=50, y=200), 0, 30, blur_size=4)
+  grid = MakeHeightMap(50, 200, 0, 30, blur_size=4)
   if False:
     for row in grid:
       for v in row:

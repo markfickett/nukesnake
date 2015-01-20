@@ -3,13 +3,13 @@
 
 import common
 import config
-import messages_pb2
+import game_pb2
 import random
 
 
 _VIEW_DIST = 3
 _DESIRABLE_BLOCKS = frozenset((
-    messages_pb2.Block.AMMO,
+    game_pb2.Block.AMMO,
 ))
 
 
@@ -19,7 +19,7 @@ class Player(object):
     self._info = player_info
 
   def UpdateAndDoCommands(self, new_game_state, game_server):
-    if new_game_state.stage != messages_pb2.GameState.ROUND:
+    if new_game_state.stage != game_pb2.Stage.ROUND:
       return
 
     for player_info in new_game_state.player_info:
@@ -38,7 +38,7 @@ class Player(object):
           'AI could not find its own head.\n%s\n%s' % (
               self._info,
               [str(b).replace('\n', ' ') for b in new_game_state.block
-               if b.type == messages_pb2.Block.PLAYER_HEAD]))
+               if b.type == game_pb2.Block.PLAYER_HEAD]))
     default_dir = (player_head.direction.x, player_head.direction.y)
 
     nearby = []
@@ -64,7 +64,7 @@ class Player(object):
             if dist == 1:
               safe_directions.add((i, j))
           elif (block.type in _DESIRABLE_BLOCKS or
-              (block.type == messages_pb2.Block.ROCKET and
+              (block.type == game_pb2.Block.ROCKET and
                block.direction.x == i and block.direction.y == j)):
             preferred_directions.add((i, j))
           else:
@@ -86,10 +86,8 @@ class Player(object):
         shoot = should_shoot
         break
     if new_dir != default_dir:
-      game_server.Move(messages_pb2.MoveRequest(
-          player_secret=self._secret,
-          move=messages_pb2.Coordinate(x=new_dir[0], y=new_dir[1])))
+      game_server.Move(
+          self._secret, game_pb2.Coordinate(x=new_dir[0], y=new_dir[1]))
 
     if (config.INFINITE_AMMO or self._info.inventory) and shoot:
-      game_server.Action(messages_pb2.IdentifiedRequest(
-          player_secret=self._secret))
+      game_server.Action(self._secret)
