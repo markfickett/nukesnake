@@ -1,0 +1,28 @@
+// Messages for network communication encapsulation.
+
+import "game.proto";
+
+// Messages sent by the network client. One REGISTER per player when the server
+// connection is initially opened, then any number of MOVE or ACTION commands.
+message Request {
+  enum Command {
+    REGISTER = 1;
+    MOVE = 2;
+    ACTION = 3;
+  }
+  required string secret = 1;
+  required Command command = 2;
+  optional string name = 3;  // for REGISTER only
+  optional Coordinate direction = 4;  // for MOVE only
+}
+
+// Messages sent back by the network server. One with full game state is sent
+// when the client registers and subsequently for new rounds, and then changes
+// are sent for each server tick.
+message Response {
+  repeated Block block = 1;
+  repeated PlayerInfo player_info = 2;
+  optional Stage.Id stage = 3;
+  optional Coordinate size = 4;  // first response only
+  optional uint32 player_id = 5;  // first response only
+}
