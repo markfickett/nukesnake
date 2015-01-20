@@ -1,8 +1,8 @@
 """Client key controls and behavior configuration."""
 
 import curses
-import messages_pb2
-_B = messages_pb2.Block
+import game_pb2
+_B = game_pb2.Block
 
 
 # Characters used as player icons, for the snakes' heads. Assigned in the order
