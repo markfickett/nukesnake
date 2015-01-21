@@ -50,6 +50,10 @@ class Client(object):
       self._ai_players_by_id[player_id] = ai_player.Player(secret, info)
     self._player_info_by_id[player_id] = info
 
+  def UnregisterAll(self):
+    for secret, _ in self._players_secret_and_info:
+      self._game_server.Unregister(secret)
+
   @staticmethod
   def CursesWrappedLoop(window, client):
     client._CursesWrappedLoop(window)
@@ -222,3 +226,5 @@ if __name__ == '__main__':
     curses.wrapper(Client.CursesWrappedLoop, client)
   except KeyboardInterrupt:
     print 'Quitting.'
+  finally:
+    client.UnregisterAll()
