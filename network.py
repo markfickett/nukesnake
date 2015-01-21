@@ -24,6 +24,8 @@ class _ProtoSocket(object):
   _TIMEOUT = 3.0
   # max size allowed by socket library for UDP is [9214, 9224)
   _BUFFER_SIZE = 9214
+  _Segment = collections.namedtuple(
+      'Segment', ('chunks', 'indices', 'has_last'))
 
   def __init__(self, sock, response_cls, default_addr=None):
     self._sock = sock
@@ -32,21 +34,22 @@ class _ProtoSocket(object):
     self._buffer = ''
     self._default_addr = default_addr
 
+    self._next_segment_id = 1
+    self._segments_by_id = collections.defaultdict(
+        lambda: self._Segment(chunks=[], indices=set(), has_last=[False]))
     self._min_overflow = float('Inf')
     self._max_safe = 0
 
   def Write(self, proto, dest_addrs=[]):
-    data = proto.SerializeToString()
-    if self._STOP in data:
-      print (
-          'Error: stop sequence %r in serialization of proto: %s' %
-          (self._STOP, str(proto).replace('\n', ' ')))
-      return
-    data += self._STOP
+    data = proto.SerializeToString() + self._STOP
     if len(data) > self._BUFFER_SIZE:
-      print (
-          'Error: serialized proto is %d bytes > buffer size %d bytes: %s...' %
-          (len(data), self._BUFFER_SIZE, str(proto).replace('\n', ' ')[:100]))
+      if hasattr(proto, 'chunk_info') and not proto.HasField('chunk_info'):
+        self._WriteChunked(proto, len(data), dest_addrs)
+      else:
+        print (
+            'Error: Non-chunkable proto is %d bytes > buffer %d bytes: %s...' %
+            (len(data), self._BUFFER_SIZE, str(proto).replace('\n', ' ')[:100]))
+      return
     try:
       for dest_addr in dest_addrs:
         self._sock.sendto(data, dest_addr)
@@ -63,13 +66,53 @@ class _ProtoSocket(object):
       else:
         raise
 
+  def _WriteChunked(self, proto, oversize, dest_addrs):
+    # TODO: Generalize (for request too / for arbitrary fields)?
+    num_chunks = oversize / self._BUFFER_SIZE + 2
+    remaining_block_list = list(proto.block)
+    blocks_per_chunk = (len(remaining_block_list) / num_chunks) + 1
+    del proto.block[:]
+    chunk_index = 0
+    while remaining_block_list:
+      block_chunk = remaining_block_list[:blocks_per_chunk]
+      remaining_block_list = remaining_block_list[blocks_per_chunk:]
+      chunk = proto.__class__(
+          block=block_chunk,
+          chunk_info=network_pb2.Chunk(
+              segment_id=self._next_segment_id,
+              chunk_index=chunk_index,
+              last_chunk=not remaining_block_list))
+      chunk.MergeFrom(proto)
+      self.Write(chunk, dest_addrs)
+      chunk_index += 1
+    self._next_segment_id += 1
+
+  def _RemoveAndReturnChunked(self, chunk):
+    segment = self._segments_by_id[chunk.chunk_info.segment_id]
+    segment.indices.add(chunk.chunk_info.chunk_index)
+    segment.chunks.append(chunk)
+    segment.has_last[0] |= chunk.chunk_info.last_chunk
+    if segment.has_last[0] and max(segment.indices) == len(segment.chunks) - 1:
+      del self._segments_by_id[chunk.chunk_info.segment_id]
+      ordered = segment.chunks
+      ordered.sort(key=lambda chunk: chunk.chunk_info.chunk_index)
+      first = ordered[0]
+      for chunk in ordered[1:]:
+        first.block.extend(chunk.block)
+      return first
+    return None
+
   def _RemoveAndReturnProtoFromBuffer(self):
     proto_data, found_stop, rest = self._buffer.partition(self._STOP)
     if not found_stop:
       return None
     self._buffer = rest
     try:
-      return self._response_cls.FromString(proto_data)
+      proto = self._response_cls.FromString(proto_data)
+      if hasattr(proto, 'chunk_info') and proto.HasField('chunk_info'):
+        return self._RemoveAndReturnChunked(proto)
+      else:
+        return proto
     except google.protobuf.message.DecodeError:
       print 'Decoding error of %r.' % proto_data
       return None
@@ -140,7 +183,6 @@ class Server(object):
         print 'Registered player %d with Controller.' % player_id
         self._sock.Write(
             network_pb2.Response(player_id=player_id), [client_addr])
-        print 'Wrote registration response.'
       elif request.command == network_pb2.Request.MOVE:
         self._game.Move(request.secret, request.direction)
       elif request.command == network_pb2.Request.ACTION:

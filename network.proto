@@ -2,6 +2,13 @@
 
 import "game.proto";
 
+// Details for messages which are split across multiple packets.
+message Chunk {
+  required uint32 segment_id = 1;
+  required uint32 chunk_index = 2;
+  optional bool last_chunk = 3;
+}
+
 // Messages sent by the network client. One REGISTER per player when the server
 // connection is initially opened, then any number of MOVE or ACTION commands.
 message Request {
@@ -26,4 +33,5 @@ message Response {
   optional Stage.Id stage = 3;
   optional Coordinate size = 4;  // first response only
   optional uint32 player_id = 5;  // first response only
+  optional Chunk chunk_info = 6;
 }
