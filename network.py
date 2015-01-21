@@ -1,9 +1,15 @@
 #!/usr/bin/env python
-"""Network server (and client) for Nuke Snake, using TCP sockets and protos.
+"""Network server (and client interface) for Nuke Snake.
 
-Intro to Python sockets: binarytides.com/python-socket-programming-tutorial/
+Example:
+  # Run a server with a 200x50 block world.
+  %(prog)s --width 200 --height 50
+
+The server uses UDP sockets and protobufs for communication. Intro to Python
+sockets: binarytides.com/python-socket-programming-tutorial/
 """
 
+import argparse
 import errno
 import collections
 import socket
@@ -271,5 +277,16 @@ class Client(object):
 
 
 if __name__ == '__main__':
-  server = Server('', PORT, 78, 23)
+  summary_line, _, main_doc = __doc__.partition('\n\n')
+  parser = argparse.ArgumentParser(
+      description=summary_line,
+      epilog=main_doc,
+      formatter_class=argparse.RawDescriptionHelpFormatter)
+  parser.add_argument(
+      '--host', default='',
+      help='Hostname to bind to when serving network play.')
+  controller.AddControllerArgs(parser)
+  args = parser.parse_args()
+
+  server = Server(args.host, PORT, args.width, args.height)
   server.ListenAndUpdateForever()

@@ -4,10 +4,8 @@
 Examples:
   # Connect to an available network server.
   %(prog)s
-  # Run without a network server.
-  %(prog)s --standalone -x 200 -y 50
 
-The client can be standalone, or communicate to a networked server."""
+The client communicates with a networked server."""
 
 import argparse
 import curses
@@ -191,13 +189,16 @@ if __name__ == '__main__':
   parser.add_argument(
       '-a', '--ai', action='append', default=[],
       help='Names for AI players to add to the game.')
+  parser.add_argument(
+      '--host', default='localhost',
+      help='Server to connect to for network play.')
   controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
   if args.standalone:
     raise NotImplementedError()
   else:
-    game_server = network.Client(network.HOST, network.PORT)
+    game_server = network.Client(args.host, network.PORT)
 
   locale.setlocale(locale.LC_ALL, '')
 
