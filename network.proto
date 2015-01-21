@@ -9,6 +9,7 @@ message Request {
     REGISTER = 1;
     MOVE = 2;
     ACTION = 3;
+    UNREGISTER = 4;
   }
   required string secret = 1;
   required Command command = 2;
