@@ -4,6 +4,8 @@
 Intro to Python sockets: binarytides.com/python-socket-programming-tutorial/
 """
 
+import errno
+import collections
 import socket
 import time
 
@@ -17,34 +19,49 @@ HOST = 'localhost'
 PORT = 9988
 
 
-class DisconnectedError(RuntimeError):
-  pass
-
-
 class _ProtoSocket(object):
   _STOP = '\xc3\0\0\xdb'  # magic string unlikely to appear in proto stream
   _TIMEOUT = 3.0
+  # max size allowed by socket library for UDP is [9214, 9224)
+  _BUFFER_SIZE = 9214
 
-  def __init__(self, sock, response_cls):
+  def __init__(self, sock, response_cls, default_addr=None):
     self._sock = sock
     self._sock.settimeout(0.0)  # non-blocking
     self._response_cls = response_cls
     self._buffer = ''
+    self._default_addr = default_addr
 
-  def Write(self, proto):
+    self._min_overflow = float('Inf')
+    self._max_safe = 0
+
+  def Write(self, proto, dest_addrs=[]):
     data = proto.SerializeToString()
     if self._STOP in data:
       print (
-          'Error: stop sequence %r in serialization of proto %s.' %
+          'Error: stop sequence %r in serialization of proto: %s' %
           (self._STOP, str(proto).replace('\n', ' ')))
       return
-    self._sock.settimeout(self._TIMEOUT)
+    data += self._STOP
+    if len(data) > self._BUFFER_SIZE:
+      print (
+          'Error: serialized proto is %d bytes > buffer size %d bytes: %s...' %
+          (len(data), self._BUFFER_SIZE, str(proto).replace('\n', ' ')[:100]))
     try:
-      self._sock.sendall(data + self._STOP)
-    except socket.error:
-      raise DisconnectedError()
-    finally:
-      self._sock.settimeout(0.0)
+      for dest_addr in dest_addrs:
+        self._sock.sendto(data, dest_addr)
+      if self._default_addr:
+        self._sock.sendto(data, self._default_addr)
+      self._max_safe = max(self._max_safe, len(data))
+    except socket.error, (n, msg):
+      print 'Error %d sending: %s' % (n, msg)
+      if n == errno.EMSGSIZE:
+        self._min_overflow = min(self._min_overflow, len(data))
+        print (
+            'Attempted to send %d bytes (%d safe, %d overflow).' %
+            (len(data), self._max_safe, self._min_overflow))
+      else:
+        raise
 
   def _RemoveAndReturnProtoFromBuffer(self):
     proto_data, found_stop, rest = self._buffer.partition(self._STOP)
@@ -60,88 +77,93 @@ class _ProtoSocket(object):
   def ReadBlocking(self):
     self._sock.settimeout(self._TIMEOUT)
     while True:
-      self._buffer += self._sock.recv(4096)
+      # may raise socket.timeout
+      new_data, sender_addr = self._sock.recvfrom(self._BUFFER_SIZE)
+      self._buffer += new_data
       proto = self._RemoveAndReturnProtoFromBuffer()
       if proto:
         self._sock.settimeout(0.0)
-        return proto
+        return proto, sender_addr
 
   def Read(self):
-    new_data = ''
     try:
-      new_data += self._sock.recv(4096)
+      new_data, sender_addr = self._sock.recvfrom(self._BUFFER_SIZE)
     except socket.error:
-      return  # connection open, no data
-    if not new_data:
-      raise DisconnectedError()
+      return None, None  # no data right now
     self._buffer += new_data
-    return self._RemoveAndReturnProtoFromBuffer()
+    return self._RemoveAndReturnProtoFromBuffer(), sender_addr
 
   def Close(self):
     self._sock.close()
 
 
 class Server(object):
-  _MAX_CONNECTIONS = 10
   _UPDATE_INTERVAL = 1 / 20.0
+  _CLIENT_TIMEOUT = 60.0
+  _ClientConnection = collections.namedtuple(
+      'ClientConnection', ('activity', 'secrets', 'names'))
 
   def __init__(self, host, port, width, height):
     self._game = controller.Controller(width, height)
-    self._listening_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self._listening_sock.bind((host, port))
-    self._listening_sock.listen(self._MAX_CONNECTIONS)
-    print (
-        'Listening for up to %d connections on %s:%d.' %
-        (self._MAX_CONNECTIONS, host, port))
-    self._listening_sock.settimeout(0.0)
-    self._client_conns_and_secrets = []
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind((host, port))
+    self._sock = _ProtoSocket(s, network_pb2.Request)
+    print 'Listening on %s:%d.' % (host, port)
+
+    self._active_clients_by_addr = {}
     self._last_state_hash = None
 
   def ListenAndUpdateForever(self):
     try:
       while True:
-        self._AcceptNewConnections()
-        self._ReadCommandRequests()
+        self._ReadClientRequests()
         updates = self._UpdateController()
         self._DistributeUpdates(updates)
+        self._UnregisterInactiveClients()
         time.sleep(self._UPDATE_INTERVAL)
     finally:
-      print 'Closing all connections.'
-      self._listening_sock.close()
-      for client_socket, _ in self._client_conns_and_secrets:
-        client_socket.Close()
+      print 'Closing listening socket.'
+      self._sock.Close()
 
-  def _AcceptNewConnections(self):
-    got_new_connection = True
-    while got_new_connection:
-      try:
-        raw_socket, addr = self._listening_sock.accept()
-        print ('New client connection from %s:%d.' % addr)
-        client_socket = _ProtoSocket(raw_socket, network_pb2.Request)
-        self._client_conns_and_secrets.append((client_socket, []))
-      except socket.error:
-        got_new_connection = False
-
-  def _ReadSingleCommandRequest(self, client_socket, secrets):
-    request = client_socket.Read()
+  def _ReadClientRequests(self):
+    request, client_addr = self._sock.Read()
     while request:
-      print 'Got client command request: %s' % str(request).replace('\n', ' ')
+      print (
+          'Client %s:%d sends: %s' %
+          (client_addr[0], client_addr[1], str(request).replace('\n', ' ')))
+      if not request.HasField('command'):
+        print 'empty request!'
+        break
+      self._RecordClientActive(client_addr, request.secret, request.name)
       if request.command == network_pb2.Request.REGISTER:
         player_id = self._game.Register(request.secret, request.name)
         print 'Registered player %d with Controller.' % player_id
-        client_socket.Write(network_pb2.Response(player_id=player_id))
-        secrets.append(request.secret)
+        self._sock.Write(
+            network_pb2.Response(player_id=player_id), [client_addr])
         print 'Wrote registration response.'
       elif request.command == network_pb2.Request.MOVE:
         self._game.Move(request.secret, request.direction)
       elif request.command == network_pb2.Request.ACTION:
         self._game.Action(request.secret)
+      elif request.command == network_pb2.Request.UNREGISTER:
+        # Client connection info will be auto-removed on timeout.
+        self._game.Unregister(request.secret)
       else:
         print 'Unrecognized client request: %s' % request
-      request = client_socket.Read()
+      request, client_addr = self._sock.Read()
 
-  def _ReadCommandRequests(self):
-    self._ForEachClientSocket(self._ReadSingleCommandRequest)
+  def _RecordClientActive(self, client_addr, secret, name=None):
+    client_connection = self._active_clients_by_addr.get(client_addr)
+    if client_connection:
+      client_connection.activity.append(time.time())
+      client_connection.secrets.add(secret)
+      if name:
+        client_connection.names.add(name)
+    else:
+      self._active_clients_by_addr[client_addr] = self._ClientConnection(
+          activity=[time.time()],
+          secrets=set([secret]),
+          names=set([name]) if name else set())
 
   def _UpdateController(self):
     if self._game.Update():
@@ -151,63 +173,59 @@ class Server(object):
         return [new_state]
     return []
 
-  def _WriteSingleUpdate(self, client_socket, secrets, update_response):
-    client_socket.Write(update_response)
-
   def _DistributeUpdates(self, updates):
     for update_response in updates:
-      self._ForEachClientSocket(self._WriteSingleUpdate, update_response)
+      self._sock.Write(update_response, self._active_clients_by_addr.keys())
 
-  def _ForEachClientSocket(self, fn, *args):
-    rm_indices = []
-    for i, (client_socket, secrets) in enumerate(
-        self._client_conns_and_secrets):
-      try:
-        fn(client_socket, secrets, *args)
-      except DisconnectedError:
-        print 'client disconnected (in read)'
-        rm_indices.append(i)
-    for i in reversed(rm_indices):
-      _, secrets = self._client_conns_and_secrets.pop(i)
-      for secret in secrets:
-        self._game.Unregister(secret)
+  def _UnregisterInactiveClients(self):
+    t = time.time()
+    to_rm = []
+    for addr, conn in self._active_clients_by_addr.iteritems():
+      if (t - conn.activity[-1]) > self._CLIENT_TIMEOUT:
+        print (
+            'Auto un-registered %s (secrets %s) after %ss of inactivity.' %
+            (conn.names, conn.secrets, self._CLIENT_TIMEOUT))
+        for secret in conn.secrets:
+          self._game.Unregister(secret)
+        to_rm.append(addr)
+    for addr in to_rm:
+      del self._active_clients_by_addr[addr]
 
 
 class Client(object):
   def __init__(self, host, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((host, port))
-    self._sock = _ProtoSocket(sock, network_pb2.Response)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    self._sock = _ProtoSocket(sock, network_pb2.Response, (host, port))
 
   def Register(self, secret, name):
-    self._sock.Write(network_pb2.Request(
-        secret=secret,
-        name=name,
-        command=network_pb2.Request.REGISTER))
-    resp = self._sock.ReadBlocking()
+    register_req = network_pb2.Request(
+        secret=secret, command=network_pb2.Request.REGISTER, name=name)
+    self._sock.Write(register_req)
+    resp, unused_sender_addr = self._sock.ReadBlocking()
     while not resp.HasField('player_id'):
       # Skip server updates unrelated to registration.
-      resp = self._sock.ReadBlocking()
+      resp, unused_sender_addr = self._sock.ReadBlocking()
     return resp.player_id
 
   def Move(self, secret, direction):
     self._sock.Write(network_pb2.Request(
-        secret=secret,
-        command=network_pb2.Request.MOVE,
-        direction=direction))
+        secret=secret, command=network_pb2.Request.MOVE, direction=direction))
 
   def Action(self, secret):
     self._sock.Write(network_pb2.Request(
-        secret=secret,
-        command=network_pb2.Request.ACTION))
+        secret=secret, command=network_pb2.Request.ACTION))
 
   def GetUpdates(self):
     updates = []
-    resp = self._sock.Read()
+    resp, unused_sender_addr = self._sock.Read()
     while resp:
       updates.append(resp)
-      resp = self._sock.Read()
+      resp, unused_sender_addr = self._sock.Read()
     return updates
+
+  def Unregister(self, secret):
+    self._sock.Write(network_pb2.Request(
+        secret=secret, command=network_pb2.Request.UNREGISTER))
 
 
 if __name__ == '__main__':
