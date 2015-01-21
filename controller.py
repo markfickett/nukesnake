@@ -42,6 +42,7 @@ class Controller(object):
     self._start_requested = False
     self._last_update = time.time()
     self._tick = 0
+    self._round_num = 0
 
     self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
 
@@ -59,10 +60,22 @@ class Controller(object):
       self._rockets = []
       # a subset of static blocks; to track expiration
       self._player_tails_by_id = collections.defaultdict(lambda: list())
+
+      # If (almost) everyone left, reset more things.
+      reset_stats = False
+      if len(self._player_infos_by_secret) <= 1:
+        self._round_num = 0
+        reset_stats = True
+      else:
+        self._round_num += 1
+
       self._BuildStaticBlocks()
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = True
+        if reset_stats:
+          info.score = 0
+          del info.inventory[:]
 
   def GetGameState(self, last_hash):
     if self._dirty:
@@ -75,7 +88,8 @@ class Controller(object):
           size=self._size,
           player_info=self._player_infos_by_secret.values(),
           block=environment_blocks + self._player_heads_by_secret.values(),
-          stage=self._stage)
+          stage=self._stage,
+          round_num=self._round_num)
       self._dirty = False
       self._state_hash += 1
 

@@ -121,7 +121,8 @@ class Client(object):
     for block in self._game_state.block:
       self._RenderBlock(block)
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
-      self._RenderMessage('Press action to start.')
+      self._RenderMessage(
+          'Press action to start round %d.' % self._game_state.round_num)
     elif self._game_state.stage == game_pb2.Stage.ROUND_START:
       self._RenderMessage('Ready...')
     else:
