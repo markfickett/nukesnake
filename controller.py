@@ -121,7 +121,25 @@ class Controller(object):
 
   def _AddPlayerHeadResetPos(self, player_secret, player_info):
     head = self._player_heads_by_secret.get(player_secret)
-    starting_pos = _RandomPosWithin(self._size)
+
+    tries = 0
+    collides = True
+    while collides and tries < 10:
+      starting_pos = _RandomPosWithin(self._size)
+      collides = False
+      tries += 1
+      for dx in xrange(-1, 2):
+        for dy in xrange(-1, 2):
+          hit = self._static_blocks_grid[
+              (starting_pos.x + dx) % self._size.x][
+              (starting_pos.y + dy) % self._size.y]
+          if hit is not None:
+            collides = True
+            print (
+                '%s was going to start on a %s, retrying.' %
+                (player_info.name, _B.Type.Name(hit.type).lower()))
+            break
+
     if head:
       head.pos.MergeFrom(starting_pos)
     else:
