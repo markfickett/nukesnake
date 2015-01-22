@@ -19,13 +19,18 @@ _PAUSE_TICKS = 2 / UPDATE_INTERVAL
 _STARTING_TAIL_LENGTH = max(0, config.STARTING_TAIL_LENGTH)
 _MAX_ROCKET_AGE = 300
 _ROCKETS_PER_AMMO = 3
+_MAX_POWER_UP_AGE = 3 / UPDATE_INTERVAL
 _AMMO_RARITY = max(1, config.AMMO_RARITY)
+_POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
-_MAX_POWER_UP_AGE = 3 / UPDATE_INTERVAL
 
 _B = game_pb2.Block
-_POWER_UPS = (_B.STAY_STILL, _B.FAST)
+_POWER_UP_STARTING_ROUNDS = {
+  _B.FAST: 3,
+  _B.STAY_STILL: 6,
+}
+_POWER_UPS = frozenset(_POWER_UP_STARTING_ROUNDS.keys())
 
 
 class Controller(object):
@@ -203,8 +208,9 @@ class Controller(object):
           pos = _RandomPosWithin(self._size)
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
-      for _ in xrange(10):
-        for power_up in _POWER_UPS:
+    for power_up, first_round in _POWER_UP_STARTING_ROUNDS.iteritems():
+      if self._round_num >= first_round:
+        for _ in xrange(self._size.x * self._size.y / _POWER_UP_RARITY):
           pos = _RandomPosWithin(self._size)
           self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
 
