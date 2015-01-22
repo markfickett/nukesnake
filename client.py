@@ -34,6 +34,7 @@ class Client(object):
     self._window = None
     self._block_palettes_by_type = {}
     self._player_palettes = []
+    self._num_message_lines = 1
 
     self._game_state = None
 
@@ -57,6 +58,7 @@ class Client(object):
 
   def _CursesWrappedLoop(self, window):
     self._SetUpCurses(window)
+    self._num_message_lines += len(self._players_secret_and_info)
 
     while True:
       time.sleep(client_config.UPDATE_INTERVAL_SEC)
@@ -108,11 +110,17 @@ class Client(object):
 
   def _Repaint(self):
     h, w = self._window.getmaxyx()
-    if self._game_state.size.x >= w or self._game_state.size.y >= h:
+    message = ''
+    if (self._game_state.size.x >= w or
+        self._game_state.size.y + self._num_message_lines >= h):
       self._window.erase()
-      self._RenderMessage(
-          'Resize to %dx%d (now %dx%d).'
-          % (self._game_state.size.x + 1, self._game_state.size.y + 1, w, h))
+      message = (
+          'Resize to %dx%d (now %dx%d).' %
+          (self._game_state.size.x + 1,
+           self._game_state.size.y + 1 + self._num_message_lines,
+           w,
+           h))
+      self._window.addstr(h / 2, w / 2 - len(message) / 2, message)
       self._window.refresh()
       return
 
@@ -120,16 +128,15 @@ class Client(object):
     for block in self._game_state.block:
       self._RenderBlock(block)
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
-      self._RenderMessage(
-          'Press action to start round %d.' % self._game_state.round_num)
+      message = 'Press action to start round %d.' % self._game_state.round_num
     elif self._game_state.stage == game_pb2.Stage.ROUND_START:
-      self._RenderMessage('Ready...')
+      message = 'Ready...'
     else:
       for i, (_, local_info) in enumerate(self._players_secret_and_info):
         if not local_info.alive:
-          self._RenderMessage(
-              '%s Dies (score %d)' % (local_info.name, local_info.score),
-              y_offset=-(i + 1))
+          message += (
+              '%s Dies (score %d) ' %
+              (local_info.name, local_info.score))
     if self._game_state.stage == game_pb2.Stage.ROUND_END:
       living_info = None
       for info in self._game_state.player_info:
@@ -137,8 +144,10 @@ class Client(object):
           living_info = info
           break
       if living_info:
-        self._RenderMessage(
-            '%s wins! (score %d)' % (living_info.name, living_info.score))
+        message = (
+            '%s wins! (score %d) %s' %
+            (living_info.name, living_info.score, message))
+    self._window.addstr(h - 1, 1, message)
     self._window.refresh()
 
   def _RenderBlock(self, block):
@@ -171,10 +180,6 @@ class Client(object):
       if name_x + len(name) >= self._game_state.size.x:
         name_x = block.pos.x - (2 + len(name))
       self._window.addstr(block.pos.y, name_x, name, s_attr)
-
-  def _RenderMessage(self, msg, y_offset=0):
-    h, w = self._window.getmaxyx()
-    self._window.addstr(h / 2 + y_offset, w / 2 - len(msg) / 2, msg)
 
 
 if __name__ == '__main__':
