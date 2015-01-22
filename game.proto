@@ -23,7 +23,8 @@ message Block {
     ROCKET = 5;
     MINE = 6;
     ROCK = 7;
-    TREE = 8;
+    BROKEN_ROCK = 8;
+    TREE = 9;
   }
 
   required Type type = 1;

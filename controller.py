@@ -338,6 +338,9 @@ class Controller(object):
           # If two players die at once, tails might already be removed.
           if b in tails:
             tails.remove(b)
+        elif b.type == _B.ROCK:
+          self._static_blocks_grid[b.pos.x][b.pos.y] = _B(
+              type=_B.BROKEN_ROCK, pos=b.pos)
         elif b.type == _B.MINE:
           for i in range(-1, 2):
             for j in range(-1, 2):

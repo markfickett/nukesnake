@@ -27,6 +27,7 @@ BLOCK_CHARACTERS = {
   _B.AMMO: u'\N{Tamil Sign Visarga}',
   _B.MINE: u'\N{Reference Mark}',
   _B.ROCK: u'\N{Black Shogi Piece}',
+  _B.BROKEN_ROCK: u'\N{Reversed Rotated Floral Heart Bullet}',
   _B.TREE: u'\N{Apl Functional Symbol Delta Stile}',
 }
 # A fallback for block types with no other character assigned.
