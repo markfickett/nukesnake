@@ -26,10 +26,10 @@ assert _MAX_LOCAL_PLAYERS == len(client_config.ACTION_KEYS)
 class Client(object):
   def __init__(self, game_server):
     self._game_server = game_server
-    self._players_secret_and_info = []
-    self._local_player_ids = set()
+    self._local_player_ids_ordered = []
     self._ai_players_by_id = {}
     self._player_info_by_id = {}
+    self._player_secret_by_id = {}
 
     self._window = None
     self._block_palettes_by_type = {}
@@ -42,14 +42,14 @@ class Client(object):
     secret = str(random.random())
     player_id = self._game_server.Register(secret, name)
     info = game_pb2.PlayerInfo(player_id=player_id, name=name)
-    self._players_secret_and_info.append((secret, info))
-    self._local_player_ids.add(player_id)
+    self._player_secret_by_id[player_id] = secret
+    self._local_player_ids_ordered.append(player_id)
     if ai:
       self._ai_players_by_id[player_id] = ai_player.Player(secret, info)
     self._player_info_by_id[player_id] = info
 
   def UnregisterAll(self):
-    for secret, _ in self._players_secret_and_info:
+    for secret in self._player_secret_by_id.values():
       self._game_server.Unregister(secret)
 
   @staticmethod
@@ -58,15 +58,16 @@ class Client(object):
 
   def _CursesWrappedLoop(self, window):
     self._SetUpCurses(window)
-    self._num_message_lines += len(self._players_secret_and_info)
+    self._num_message_lines += len(self._local_player_ids_ordered)
 
     while True:
       time.sleep(client_config.UPDATE_INTERVAL_SEC)
 
       key_code = window.getch()
       local_player_index = 0
-      for secret, info in self._players_secret_and_info:
-        if info.player_id not in self._ai_players_by_id:
+      for player_id, info in self._player_info_by_id.iteritems():
+        if player_id not in self._ai_players_by_id:
+          secret = self._player_secret_by_id[player_id]
           self._DoPlayerCommand(local_player_index, secret, info, key_code)
           local_player_index += 1
 
@@ -108,7 +109,7 @@ class Client(object):
     self._game_state = states[-1]
     for info in self._game_state.player_info:
       if info.player_id in self._player_info_by_id:
-        self._player_info_by_id[info.player_id].MergeFrom(info)
+        self._player_info_by_id[info.player_id] = info
     return True
 
   def _CheckWindowSize(self):
@@ -135,17 +136,34 @@ class Client(object):
 
   def _Repaint(self):
     h, w = self._window.getmaxyx()
-    message = ''
 
     self._window.erase()
+
     for block in self._game_state.block:
       self._RenderBlock(block)
+
+    for i, player_id in enumerate(self._local_player_ids_ordered, 1):
+      info = self._player_info_by_id[player_id]
+      player_icon = client_config.PLAYER_ICONS[
+          info.player_id % len(client_config.PLAYER_ICONS)]
+      power_ups = ''.join(
+          client_config.BLOCK_CHARACTERS[p.type]
+          for p in info.power_up)
+      inventory = ''.join(
+          client_config.BLOCK_CHARACTERS[t] for t in info.inventory)
+      summary = ' %s\t%s\t%s %s' % (
+          player_icon, info.name, power_ups, inventory)
+      palette_attr = curses.color_pair(
+          self._player_palettes[info.player_id % len(self._player_palettes)])
+      self._window.addstr(h - (1 + i), 0, summary.encode('utf-8'), palette_attr)
+
+    message = ''
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
       message = 'Press action to start round %d.' % self._game_state.round_num
     elif self._game_state.stage == game_pb2.Stage.ROUND_START:
       message = 'Ready...'
     else:
-      for i, (_, local_info) in enumerate(self._players_secret_and_info):
+      for local_info in self._player_info_by_id.values():
         if not local_info.alive:
           message += (
               '%s Dies (score %d) ' %
@@ -178,7 +196,7 @@ class Client(object):
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
       if (self._game_state.stage != game_pb2.Stage.ROUND
-          and block.player_id in self._local_player_ids):
+          and block.player_id in self._local_player_ids_ordered):
         if block.player_id not in self._ai_players_by_id:
           s_attr += curses.A_BLINK
         if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
