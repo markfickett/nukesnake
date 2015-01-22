@@ -143,23 +143,7 @@ class Client(object):
       self._RenderBlock(block)
 
     for i, player_id in enumerate(self._local_player_ids_ordered, 1):
-      info = self._player_info_by_id[player_id]
-      player_icon = client_config.PLAYER_ICONS[
-          info.player_id % len(client_config.PLAYER_ICONS)]
-      intro = ' %s %s' % (player_icon, info.name)
-      palette_attr = curses.color_pair(
-          self._player_palettes[info.player_id % len(self._player_palettes)])
-      self._window.addstr(h - (1 + i), 0, intro.encode('utf-8'), palette_attr)
-      power_ups = ''.join(
-          client_config.BLOCK_CHARACTERS[p.type]
-          for p in info.power_up)
-      if power_ups:
-        self._window.addstr(
-            ('  ' + power_ups).encode('utf-8'), palette_attr + curses.A_BLINK)
-      inventory = ''.join(
-          client_config.BLOCK_CHARACTERS[t] for t in info.inventory)
-      if inventory:
-        self._window.addstr('  ' + inventory.encode('utf-8'), palette_attr)
+      self._RenderSummaryLine(i, player_id, h, w)
 
     message = ''
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
@@ -183,6 +167,26 @@ class Client(object):
             '%s wins! (score %d) %s' %
             (living_info.name, living_info.score, message))
     self._window.addstr(h - 1, 1, message)
+
+  def _RenderSummaryLine(self, local_player_cardinal, player_id, h, w):
+    info = self._player_info_by_id[player_id]
+    player_icon = client_config.PLAYER_ICONS[
+        info.player_id % len(client_config.PLAYER_ICONS)]
+    intro = ' %s %s' % (player_icon, info.name)
+    palette_attr = curses.color_pair(
+        self._player_palettes[info.player_id % len(self._player_palettes)])
+    self._window.addstr(
+        h - (1 + local_player_cardinal), 0, intro.encode('utf-8'), palette_attr)
+    power_ups = ''.join(
+        client_config.BLOCK_CHARACTERS[p.type]
+        for p in info.power_up)
+    if power_ups:
+      self._window.addstr(
+          ('  ' + power_ups).encode('utf-8'), palette_attr + curses.A_BLINK)
+    inventory = ''.join(
+        client_config.BLOCK_CHARACTERS[t] for t in info.inventory)
+    if inventory:
+      self._window.addstr('  ' + inventory.encode('utf-8'), palette_attr)
 
   def _RenderBlock(self, block):
     s = '?'
