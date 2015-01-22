@@ -147,7 +147,7 @@ class _ProtoSocket(object):
 
 class Server(object):
   _UPDATE_INTERVAL = 1 / 20.0
-  _CLIENT_TIMEOUT = 60.0
+  _CLIENT_ROUNDS_TIMEOUT = 3
   _ClientConnection = collections.namedtuple(
       'ClientConnection', ('activity', 'secrets', 'names'))
 
@@ -159,6 +159,7 @@ class Server(object):
     print 'Listening on %s:%d.' % (host, port)
 
     self._active_clients_by_addr = {}
+    self._last_round = 0
     self._last_state_hash = None
 
   def ListenAndUpdateForever(self):
@@ -202,7 +203,8 @@ class Server(object):
   def _RecordClientActive(self, client_addr, secret, name=None):
     client_connection = self._active_clients_by_addr.get(client_addr)
     if client_connection:
-      client_connection.activity.append(time.time())
+      del client_connection.activity[:]
+      client_connection.activity.append(self._last_round)
       client_connection.secrets.add(secret)
       if name:
         client_connection.names.add(name)
@@ -217,6 +219,7 @@ class Server(object):
       self._last_state_hash, new_state = self._game.GetGameState(
           self._last_state_hash)
       if new_state:
+        self._last_round = new_state.round_num
         return [new_state]
     return []
 
@@ -225,13 +228,12 @@ class Server(object):
       self._sock.Write(update_response, self._active_clients_by_addr.keys())
 
   def _UnregisterInactiveClients(self):
-    t = time.time()
     to_rm = []
     for addr, conn in self._active_clients_by_addr.iteritems():
-      if (t - conn.activity[-1]) > self._CLIENT_TIMEOUT:
+      if (self._last_round - conn.activity[-1]) > self._CLIENT_ROUNDS_TIMEOUT:
         print (
-            'Auto un-registered %s (secrets %s) after %ss of inactivity.' %
-            (conn.names, conn.secrets, self._CLIENT_TIMEOUT))
+            'Auto un-registered %s (secrets %s) after %s rounds of inactivity.'
+            % (conn.names, conn.secrets, self._CLIENT_ROUNDS_TIMEOUT))
         for secret in conn.secrets:
           self._game.Unregister(secret)
         to_rm.append(addr)
