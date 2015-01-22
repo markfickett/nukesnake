@@ -22,8 +22,10 @@ _ROCKETS_PER_AMMO = 3
 _AMMO_RARITY = max(1, config.AMMO_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
+_MAX_POWER_UP_AGE = 3 / UPDATE_INTERVAL
 
 _B = game_pb2.Block
+_POWER_UPS = (_B.STAY_STILL, _B.FAST)
 
 
 class Controller(object):
@@ -201,6 +203,11 @@ class Controller(object):
           pos = _RandomPosWithin(self._size)
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
+      for _ in xrange(10):
+        for power_up in _POWER_UPS:
+          pos = _RandomPosWithin(self._size)
+          self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
+
   def Move(self, secret, direction):
     if abs(direction.x) > 1 or abs(direction.y) > 1:
       raise RuntimeError('Illegal move %s with value > 1.' % direction)
@@ -217,20 +224,22 @@ class Controller(object):
     elif self._stage == game_pb2.Stage.ROUND:
       player_head = self._player_heads_by_secret.get(secret)
       if player_head:
-        if config.INFINITE_AMMO:
-          has_rocket = True
-        else:
-          info = self._player_infos_by_secret[secret]
-          if info.inventory and info.inventory[-1] == _B.ROCKET:
-            new_inventory = info.inventory[:-1]
-            del info.inventory[:]
-            info.inventory.extend(new_inventory)
-            has_rocket = True
-          else:
-            has_rocket = False
-        if has_rocket:
+        info = self._player_infos_by_secret[secret]
+        used_item = None
+        if info.inventory:
+          used_item = info.inventory[0]
+          new_inventory = info.inventory[1:]
+          del info.inventory[:]
+          info.inventory.extend(new_inventory)
+        elif config.INFINITE_AMMO:
+          used_item = _B.ROCKET
+        if used_item == _B.ROCKET:
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
+        elif used_item in _POWER_UPS:
+          info.power_up.extend([_B(
+              type=used_item, pos=player_head.pos, created_tick=self._tick)])
+
 
   def _AddRocket(self, origin, direction, player_id):
     rocket_pos = game_pb2.Coordinate(
@@ -267,9 +276,13 @@ class Controller(object):
     return True
 
   def _Tick(self):
-    if self._tick % _HEAD_MOVE_INTERVAL == 0:
-      # Add new tail segments, move heads.
-      for head in self._player_heads_by_secret.itervalues():
+    for secret, head in self._player_heads_by_secret.iteritems():
+      info = self._player_infos_by_secret[secret]
+      power_ups = set([b.type for b in info.power_up])
+      if ((_B.FAST in power_ups
+           or self._tick % _HEAD_MOVE_INTERVAL == 0)
+          and _B.STAY_STILL not in power_ups):
+        # Add new tail segments, move heads.
         tail = _B(
             type=_B.PLAYER_TAIL,
             pos=head.pos,
@@ -277,7 +290,7 @@ class Controller(object):
             player_id=head.player_id)
         self._player_tails_by_id[head.player_id].append(tail)
         self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
-      for head in self._player_heads_by_secret.values():
+
         self._AdvanceBlock(head)
 
     for rocket in self._rockets:
@@ -298,6 +311,16 @@ class Controller(object):
         rm_indices.append(i)
     for i in reversed(rm_indices):
       del self._rockets[i]
+
+    # Expire power-ups.
+    for info in self._player_infos_by_secret.itervalues():
+      if info.power_up:
+        rm_indices = []
+        for i, power_up in enumerate(info.power_up):
+          if self._tick - power_up.created_tick > _MAX_POWER_UP_AGE:
+            rm_indices.append(i)
+        for i in reversed(rm_indices):
+          del info.power_up[i]
 
     self._ProcessCollisions()
 
@@ -321,7 +344,7 @@ class Controller(object):
         hit = target_grid[b.pos.x][b.pos.y]
         if hit:
           destroyed.append(hit)
-          if not self._CheckIsPlayerHeadAddAmmo(b, hit):
+          if not self._CheckIsPlayerHeadPickUpItem(b, hit):
             destroyed.append(b)
       if not hit:
         moving_blocks_grid[b.pos.x][b.pos.y] = b
@@ -349,20 +372,22 @@ class Controller(object):
               self._AddRocket(
                   b.pos, game_pb2.Coordinate(x=i, y=j), b.player_id)
 
-  def _CheckIsPlayerHeadAddAmmo(self, head, ammo):
-    if not (
-        not config.INFINITE_AMMO and
-        head.type == _B.PLAYER_HEAD and ammo.type == _B.AMMO):
+  def _CheckIsPlayerHeadPickUpItem(self, head, block):
+    if not head.type == _B.PLAYER_HEAD:
       return False
-    info = None
     for player in self._player_infos_by_secret.values():
       if head.player_id == player.player_id:
         info = player
         break
-    if info:
+    if not info:
+      return False
+    if block.type == _B.AMMO:
       info.inventory.extend([_B.ROCKET] * _ROCKETS_PER_AMMO)
-      return True
-    return False
+    elif block.type in _POWER_UPS:
+      info.inventory.append(block.type)
+    else:
+      return False
+    return True
 
   def _KillPlayer(self, player_id):
     secret = None

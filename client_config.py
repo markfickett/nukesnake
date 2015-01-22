@@ -29,6 +29,9 @@ BLOCK_CHARACTERS = {
   _B.ROCK: u'\N{Black Shogi Piece}',
   _B.BROKEN_ROCK: u'\N{Reversed Rotated Floral Heart Bullet}',
   _B.TREE: u'\N{Apl Functional Symbol Delta Stile}',
+
+  _B.STAY_STILL: u'\N{Black Chess Rook}',
+  _B.FAST: u'\U0001f407',  # Rabbit
 }
 # A fallback for block types with no other character assigned.
 DEFAULT_BLOCK_CHARACTER = '?'

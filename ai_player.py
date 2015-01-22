@@ -10,6 +10,8 @@ import random
 _VIEW_DIST = 3
 _DESIRABLE_BLOCKS = frozenset((
     game_pb2.Block.AMMO,
+    game_pb2.Block.STAY_STILL,
+    game_pb2.Block.FAST,
 ))
 
 

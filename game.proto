@@ -4,8 +4,9 @@ message PlayerInfo {
   required uint32 player_id = 1;
   required string name = 2;
   optional bool alive = 3;
-  repeated Block.Type inventory = 4;
-  optional uint32 score = 5;
+  optional uint32 score = 4;
+  repeated Block.Type inventory = 5;
+  repeated Block power_up = 6;
 }
 
 message Coordinate {
@@ -25,6 +26,10 @@ message Block {
     ROCK = 7;
     BROKEN_ROCK = 8;
     TREE = 9;
+
+    // power-ups
+    STAY_STILL = 10;
+    FAST = 11;
   }
 
   required Type type = 1;
