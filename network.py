@@ -21,7 +21,6 @@ import controller
 import network_pb2  # protoc --python_out=. *.proto
 
 
-HOST = 'localhost'
 PORT = 9988
 
 
