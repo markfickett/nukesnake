@@ -70,10 +70,13 @@ class Client(object):
           self._DoPlayerCommand(local_player_index, secret, info, key_code)
           local_player_index += 1
 
-      if self._UpdateGameState():
-        self._Repaint()
+      updated = self._UpdateGameState()
+      if updated:
         for ai_player in self._ai_players_by_id.itervalues():
           ai_player.UpdateAndDoCommands(self._game_state, self._game_server)
+      if self._CheckWindowSize() and (updated or key_code == curses.KEY_RESIZE):
+        self._Repaint()
+      self._window.refresh()
 
   def _SetUpCurses(self, window):
     self._window = window
@@ -108,21 +111,31 @@ class Client(object):
         self._player_info_by_id[info.player_id].MergeFrom(info)
     return True
 
-  def _Repaint(self):
+  def _CheckWindowSize(self):
     h, w = self._window.getmaxyx()
-    message = ''
-    if (self._game_state.size.x >= w or
-        self._game_state.size.y + self._num_message_lines >= h):
-      self._window.erase()
+    if (self._game_state and
+        self._game_state.size.x < w and
+        self._game_state.size.y + self._num_message_lines < h):
+      return True
+
+    if self._game_state:
       message = (
           'Resize to %dx%d (now %dx%d).' %
           (self._game_state.size.x + 1,
            self._game_state.size.y + 1 + self._num_message_lines,
            w,
            h))
-      self._window.addstr(h / 2, w / 2 - len(message) / 2, message)
-      self._window.refresh()
-      return
+    else:
+      message = 'Waiting for initial server data...'
+
+    self._window.erase()
+    self._window.addstr(h / 2, w / 2 - len(message) / 2, message)
+
+    return False
+
+  def _Repaint(self):
+    h, w = self._window.getmaxyx()
+    message = ''
 
     self._window.erase()
     for block in self._game_state.block:
@@ -148,7 +161,6 @@ class Client(object):
             '%s wins! (score %d) %s' %
             (living_info.name, living_info.score, message))
     self._window.addstr(h - 1, 1, message)
-    self._window.refresh()
 
   def _RenderBlock(self, block):
     s = '?'
