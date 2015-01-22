@@ -146,16 +146,20 @@ class Client(object):
       info = self._player_info_by_id[player_id]
       player_icon = client_config.PLAYER_ICONS[
           info.player_id % len(client_config.PLAYER_ICONS)]
+      intro = ' %s %s' % (player_icon, info.name)
+      palette_attr = curses.color_pair(
+          self._player_palettes[info.player_id % len(self._player_palettes)])
+      self._window.addstr(h - (1 + i), 0, intro.encode('utf-8'), palette_attr)
       power_ups = ''.join(
           client_config.BLOCK_CHARACTERS[p.type]
           for p in info.power_up)
+      if power_ups:
+        self._window.addstr(
+            ('  ' + power_ups).encode('utf-8'), palette_attr + curses.A_BLINK)
       inventory = ''.join(
           client_config.BLOCK_CHARACTERS[t] for t in info.inventory)
-      summary = ' %s\t%s\t%s %s' % (
-          player_icon, info.name, power_ups, inventory)
-      palette_attr = curses.color_pair(
-          self._player_palettes[info.player_id % len(self._player_palettes)])
-      self._window.addstr(h - (1 + i), 0, summary.encode('utf-8'), palette_attr)
+      if inventory:
+        self._window.addstr('  ' + inventory.encode('utf-8'), palette_attr)
 
     message = ''
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
