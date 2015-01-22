@@ -2,10 +2,9 @@
 """A Nuke Snake client, for user interaction to play the game.
 
 Examples:
-  # Connect to an available network server.
+  # Connect to an available network server on localhost.
   %(prog)s
-
-The client communicates with a networked server."""
+"""
 
 import argparse
 import curses
