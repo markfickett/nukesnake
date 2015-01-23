@@ -284,10 +284,10 @@ class Controller(object):
   def _Tick(self):
     for secret, head in self._player_heads_by_secret.iteritems():
       info = self._player_infos_by_secret[secret]
-      power_ups = set([b.type for b in info.power_up])
-      if ((_B.FAST in power_ups
+      power_up = info.power_up[0].type if info.power_up else None
+      if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
-          and _B.STAY_STILL not in power_ups):
+          and power_up != _B.STAY_STILL):
         # Add new tail segments, move heads.
         tail = _B(
             type=_B.PLAYER_TAIL,
@@ -318,15 +318,15 @@ class Controller(object):
     for i in reversed(rm_indices):
       del self._rockets[i]
 
-    # Expire power-ups.
+    # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
       if info.power_up:
-        rm_indices = []
-        for i, power_up in enumerate(info.power_up):
-          if self._tick - power_up.created_tick > _MAX_POWER_UP_AGE:
-            rm_indices.append(i)
-        for i in reversed(rm_indices):
-          del info.power_up[i]
+        if self._tick - info.power_up[0].created_tick > _MAX_POWER_UP_AGE:
+          remaining = info.power_up[1:]
+          del info.power_up[:]
+          if remaining:
+            remaining[0].created_tick = self._tick
+            info.power_up.extend(remaining)
 
     self._ProcessCollisions()
 
