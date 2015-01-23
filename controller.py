@@ -26,12 +26,11 @@ _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
 _B = game_pb2.Block
-_POWER_UP_STARTING_ROUNDS = {
-  _B.FAST: 7,
-  _B.STAY_STILL: 10,
-  _B.TELEPORT: 14,
-}
-_POWER_UPS = frozenset(_POWER_UP_STARTING_ROUNDS.keys())
+_POWER_UPS = (
+  _B.FAST,
+  _B.STAY_STILL,
+  _B.TELEPORT,
+)
 
 
 class Controller(object):
@@ -211,11 +210,11 @@ class Controller(object):
           pos = _RandomPosWithin(self._size)
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
-    for power_up, first_round in _POWER_UP_STARTING_ROUNDS.iteritems():
-      if self._round_num >= first_round:
-        for _ in xrange(self._size.x * self._size.y / _POWER_UP_RARITY):
-          pos = _RandomPosWithin(self._size)
-          self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
+    if self._round_num in (2, 4) or self._round_num >= 6:
+      power_up = random.choice(_POWER_UPS)
+      for _ in xrange(self._size.x * self._size.y / _POWER_UP_RARITY):
+        pos = _RandomPosWithin(self._size)
+        self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
 
   def Move(self, secret, direction):
     if abs(direction.x) > 1 or abs(direction.y) > 1:
