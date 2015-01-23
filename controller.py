@@ -27,8 +27,8 @@ _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
 _B = game_pb2.Block
 _POWER_UP_STARTING_ROUNDS = {
-  _B.FAST: 3,
-  _B.STAY_STILL: 6,
+  _B.FAST: 7,
+  _B.STAY_STILL: 10,
 }
 _POWER_UPS = frozenset(_POWER_UP_STARTING_ROUNDS.keys())
 
