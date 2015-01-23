@@ -35,7 +35,7 @@ _POWER_UPS = frozenset(_POWER_UP_STARTING_ROUNDS.keys())
 
 
 class Controller(object):
-  def __init__(self, width, height):
+  def __init__(self, width, height, starting_round=0):
     self._size = game_pb2.Coordinate(
         x=max(4, width),
         y=max(4, height))
@@ -50,7 +50,8 @@ class Controller(object):
     self._start_requested = False
     self._last_update = time.time()
     self._tick = 0
-    self._round_num = 0
+    self._starting_round = max(0, int(starting_round))
+    self._round_num = self._starting_round
 
     self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
 
@@ -72,7 +73,7 @@ class Controller(object):
       # If (almost) everyone left, reset more things.
       reset_stats = False
       if len(self._player_infos_by_secret) <= 1:
-        self._round_num = 0
+        self._round_num = self._starting_round
         reset_stats = True
       else:
         self._round_num += 1
@@ -84,6 +85,7 @@ class Controller(object):
         if reset_stats:
           info.score = 0
           del info.inventory[:]
+          del info.power_up[:]
 
   def GetGameState(self, last_hash):
     if self._dirty:
@@ -247,6 +249,7 @@ class Controller(object):
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
+          info.score += 1
           info.power_up.extend([_B(
               type=used_item, pos=player_head.pos, created_tick=self._tick)])
           if used_item == _B.TELEPORT:
@@ -434,3 +437,6 @@ def AddControllerArgs(parser):
   parser.add_argument(
       '-y', '--height', type=int, default=23,
       help='Height of the world in blocks.')
+  parser.add_argument(
+      '-r', '--starting-round', type=int, default=0, dest='round',
+      help='Round number to start on, controlling available power-ups etc.')

@@ -151,8 +151,8 @@ class Server(object):
   _ClientConnection = collections.namedtuple(
       'ClientConnection', ('activity', 'secrets', 'names'))
 
-  def __init__(self, host, port, width, height):
-    self._game = controller.Controller(width, height)
+  def __init__(self, host, port, width, height, starting_round):
+    self._game = controller.Controller(width, height, starting_round)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind((host, port))
     self._sock = _ProtoSocket(s, network_pb2.Request)
@@ -289,5 +289,5 @@ if __name__ == '__main__':
   controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
-  server = Server(args.host, PORT, args.width, args.height)
+  server = Server(args.host, PORT, args.width, args.height, args.round)
   server.ListenAndUpdateForever()
