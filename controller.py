@@ -29,6 +29,7 @@ _B = game_pb2.Block
 _POWER_UP_STARTING_ROUNDS = {
   _B.FAST: 7,
   _B.STAY_STILL: 10,
+  _B.TELEPORT: 14,
 }
 _POWER_UPS = frozenset(_POWER_UP_STARTING_ROUNDS.keys())
 
@@ -126,9 +127,7 @@ class Controller(object):
       self._AddPlayerHeadResetPos(secret, info)
     return info.player_id
 
-  def _AddPlayerHeadResetPos(self, player_secret, player_info):
-    head = self._player_heads_by_secret.get(player_secret)
-
+  def _GetStartingPos(self):
     tries = 0
     collides = True
     while collides and tries < 10:
@@ -142,10 +141,12 @@ class Controller(object):
               (starting_pos.y + dy) % self._size.y]
           if hit is not None:
             collides = True
-            print (
-                '%s was going to start on a %s, retrying.' %
-                (player_info.name, _B.Type.Name(hit.type).lower()))
             break
+    return starting_pos
+
+  def _AddPlayerHeadResetPos(self, player_secret, player_info):
+    head = self._player_heads_by_secret.get(player_secret)
+    starting_pos = self._GetStartingPos()
 
     if head:
       head.pos.MergeFrom(starting_pos)
@@ -232,20 +233,24 @@ class Controller(object):
       if player_head:
         info = self._player_infos_by_secret[secret]
         used_item = None
-        if info.inventory:
+        if info.power_up and info.power_up[0].type == _B.TELEPORT:
+          player_head.pos.MergeFrom(self._GetStartingPos())
+        elif info.inventory:
           used_item = info.inventory[0]
           new_inventory = info.inventory[1:]
           del info.inventory[:]
           info.inventory.extend(new_inventory)
         elif config.INFINITE_AMMO:
           used_item = _B.ROCKET
+
         if used_item == _B.ROCKET:
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
           info.power_up.extend([_B(
               type=used_item, pos=player_head.pos, created_tick=self._tick)])
-
+          if used_item == _B.TELEPORT:
+            player_head.pos.MergeFrom(self._GetStartingPos())
 
   def _AddRocket(self, origin, direction, player_id):
     rocket_pos = game_pb2.Coordinate(

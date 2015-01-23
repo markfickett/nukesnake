@@ -32,6 +32,7 @@ BLOCK_CHARACTERS = {
 
   _B.STAY_STILL: u'\N{Black Chess Rook}',
   _B.FAST: u'\U0001f407',  # Rabbit
+  _B.TELEPORT: u'\U0001f680',  # Rocket
 }
 # A fallback for block types with no other character assigned.
 DEFAULT_BLOCK_CHARACTER = '?'

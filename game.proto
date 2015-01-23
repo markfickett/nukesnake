@@ -30,6 +30,7 @@ message Block {
     // power-ups
     STAY_STILL = 10;
     FAST = 11;
+    TELEPORT = 12;
   }
 
   required Type type = 1;
