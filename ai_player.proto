@@ -1,0 +1,9 @@
+// Enums for AI player behaviors.
+
+message Shoot {
+  enum Id {
+    NEVER = 0;
+    IMMEDIATE = 1;
+    WHEN_CORNERED = 2;
+  }
+}
