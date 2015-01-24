@@ -25,6 +25,10 @@ _POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
+_NUKE_PROPORTION = 0.8
+_NUKE_DURATION = 1
+_NUKE_SIZE = 4
+
 _B = game_pb2.Block
 _POWER_UPS = (
   _B.FAST,
@@ -194,7 +198,9 @@ class Controller(object):
     if not config.INFINITE_AMMO:
       for _ in xrange(self._size.x * self._size.y / _AMMO_RARITY):
         pos = _RandomPosWithin(self._size)
-        self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.AMMO, pos=pos)
+        self._static_blocks_grid[pos.x][pos.y] = _B(
+            type=_B.AMMO if random.random() > _NUKE_PROPORTION else _B.NUKE,
+            pos=pos)
 
     if config.MINES:
       if config.MINE_CLUSTERS:
@@ -246,6 +252,9 @@ class Controller(object):
         if used_item == _B.ROCKET:
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
+        elif used_item == _B.NUKE:
+          self._AddNuke(
+              player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
           info.score += 1
           pup_block = _B(
@@ -271,6 +280,24 @@ class Controller(object):
         direction=direction,
         last_viable_tick=self._tick + _ROCKET_DURATION,
         player_id=player_id))
+    self._dirty = True
+
+  def _AddNuke(self, origin, direction, player_id):
+    for i in xrange(-_NUKE_SIZE, _NUKE_SIZE + 1):
+      for j in xrange(-_NUKE_SIZE, _NUKE_SIZE + 1):
+        if (i, j) == (0, 0) or (j, j) == (direction.x, direction.y):
+          continue
+        pos = game_pb2.Coordinate(
+            x=(origin.x + i) % self._size.x,
+            y=(origin.y + j) % self._size.y)
+        self._rockets.append(_B(
+            type=_B.ROCKET,
+            pos=pos,
+            direction=game_pb2.Coordinate(
+                x=(-1 if i < 0 else 1) if abs(i) >= abs(j) else 0,
+                y=(-1 if j < 0 else 1) if abs(j) >= abs(i) else 0),
+            last_viable_tick=self._tick + _NUKE_DURATION,
+            player_id=player_id))
     self._dirty = True
 
   def Update(self):
@@ -403,7 +430,7 @@ class Controller(object):
       return False
     if block.type == _B.AMMO:
       info.inventory.extend([_B.ROCKET] * _ROCKETS_PER_AMMO)
-    elif block.type in _POWER_UPS:
+    elif block.type in _POWER_UPS or block.type == _B.NUKE:
       info.inventory.append(block.type)
     else:
       return False

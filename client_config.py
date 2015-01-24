@@ -25,6 +25,7 @@ BLOCK_CHARACTERS = {
   _B.WALL: u'\N{Full Block}',
   _B.ROCKET: u'\N{White Star}',
   _B.AMMO: u'\N{Tamil Sign Visarga}',
+  _B.NUKE: u'\N{Radioactive Sign}',
   _B.MINE: u'\N{Reference Mark}',
   _B.ROCK: u'\N{Black Shogi Piece}',
   _B.BROKEN_ROCK: u'\N{Reversed Rotated Floral Heart Bullet}',
@@ -43,6 +44,7 @@ DEFAULT_BLOCK_CHARACTER = '?'
 BLOCK_FOREGROUNDS = {
   curses.COLOR_GREEN: (_B.WALL, _B.TREE),
   curses.COLOR_MAGENTA: (_B.MINE, _B.ROCKET),
+  curses.COLOR_YELLOW: (_B.NUKE,),
 }
 BG_COLOR = curses.COLOR_BLACK
 # Colors to be used for players, used in the order players join.
