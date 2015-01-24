@@ -27,7 +27,7 @@ _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
 _NUKE_PROPORTION = 0.8
 _NUKE_DURATION = 1
-_NUKE_SIZE = 4
+_NUKE_SIZE = 5
 
 _B = game_pb2.Block
 _POWER_UPS = (
@@ -253,6 +253,7 @@ class Controller(object):
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item == _B.NUKE:
+          info.score += 1
           self._AddNuke(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
@@ -285,7 +286,7 @@ class Controller(object):
   def _AddNuke(self, origin, direction, player_id):
     for i in xrange(-_NUKE_SIZE, _NUKE_SIZE + 1):
       for j in xrange(-_NUKE_SIZE, _NUKE_SIZE + 1):
-        if (i, j) == (0, 0) or (j, j) == (direction.x, direction.y):
+        if (i, j) == (0, 0) or abs(i) + abs(j) > 1.7 * _NUKE_SIZE:
           continue
         pos = game_pb2.Coordinate(
             x=(origin.x + i) % self._size.x,
@@ -390,12 +391,12 @@ class Controller(object):
       for target_grid in (moving_blocks_grid, self._static_blocks_grid):
         hit = target_grid[b.pos.x][b.pos.y]
         if hit:
-          destroyed.append(hit)
+          destroyed.append((hit, b))
           if not self._CheckIsPlayerHeadPickUpItem(b, hit):
-            destroyed.append(b)
+            destroyed.append((b, hit))
       if not hit:
         moving_blocks_grid[b.pos.x][b.pos.y] = b
-    for b in destroyed:
+    for b, hit_by in destroyed:
       if b.type == _B.PLAYER_HEAD:
         self._KillPlayer(b.player_id)
       elif b.type == _B.ROCKET:
@@ -411,7 +412,8 @@ class Controller(object):
         elif b.type == _B.ROCK:
           self._static_blocks_grid[b.pos.x][b.pos.y] = _B(
               type=_B.BROKEN_ROCK, pos=b.pos)
-        elif b.type == _B.MINE:
+        elif b.type == _B.MINE or (
+            b.type == _B.NUKE and hit_by.type == _B.ROCKET):
           for i in range(-1, 2):
             for j in range(-1, 2):
               if i == 0 and j == 0:
