@@ -249,8 +249,14 @@ class Controller(object):
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
           info.score += 1
-          info.power_up.extend([_B(
-              type=used_item, pos=player_head.pos, created_tick=self._tick)])
+          pup_block = _B(
+              type=used_item, pos=player_head.pos, created_tick=self._tick)
+          if used_item == _B.STAY_STILL:
+            for other_info in self._player_infos_by_secret.itervalues():
+              if other_info.player_id != info.player_id:
+                other_info.power_up.extend([pup_block])
+          else:
+            info.power_up.extend([pup_block])
           if used_item == _B.TELEPORT:
             player_head.pos.MergeFrom(self._GetStartingPos())
 
