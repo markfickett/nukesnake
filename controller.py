@@ -25,16 +25,16 @@ _POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
-_NUKE_PROPORTION = 0.8
+_NUKE_PROPORTION = 0.1
 _NUKE_DURATION = 1
 _NUKE_SIZE = 5
 
 _B = game_pb2.Block
-_POWER_UPS = (
+_POWER_UPS = [
   _B.FAST,
   _B.STAY_STILL,
   _B.TELEPORT,
-)
+]
 
 
 class Controller(object):
@@ -216,7 +216,7 @@ class Controller(object):
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
     if self._round_num in (2, 4) or self._round_num >= 6:
-      power_up = random.choice(_POWER_UPS)
+      power_up = random.choice(_POWER_UPS + [_B.NUKE])
       for _ in xrange(self._size.x * self._size.y / _POWER_UP_RARITY):
         pos = _RandomPosWithin(self._size)
         self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
