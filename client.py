@@ -258,7 +258,9 @@ if __name__ == '__main__':
     for c, _ in move_keys:
       print chr(c),
     print ''
-    name = raw_input('Name for player %d? ' % (i + 1)).strip()
+    name = raw_input(
+        'Name for player %d? [Just hit enter if you have everyone.] '
+        % (i + 1)).strip()
     if not name:
       break
     names.append(name)
