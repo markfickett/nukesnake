@@ -26,7 +26,6 @@ _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 
 _NUKE_PROPORTION = 0.1
-_NUKE_DURATION = 1
 _NUKE_SIZE = 5
 
 _B = game_pb2.Block
@@ -297,7 +296,7 @@ class Controller(object):
             direction=game_pb2.Coordinate(
                 x=(-1 if i < 0 else 1) if abs(i) >= abs(j) else 0,
                 y=(-1 if j < 0 else 1) if abs(j) >= abs(i) else 0),
-            last_viable_tick=self._tick + _NUKE_DURATION,
+            last_viable_tick=self._tick + _ROCKET_DURATION,
             player_id=player_id))
     self._dirty = True
 
