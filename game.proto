@@ -36,7 +36,7 @@ message Block {
   required Type type = 1;
   required Coordinate pos = 2;
   optional Coordinate direction = 3;
-  optional uint64 created_tick = 4;
+  optional uint64 last_viable_tick = 4;
   optional uint32 player_id = 5;
 }
 

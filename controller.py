@@ -17,9 +17,9 @@ UPDATE_INTERVAL = max(0.05, config.SPEED)
 _PAUSE_TICKS = 2 / UPDATE_INTERVAL
 
 _STARTING_TAIL_LENGTH = max(0, config.STARTING_TAIL_LENGTH)
-_MAX_ROCKET_AGE = 300
+_ROCKET_DURATION = 300
 _ROCKETS_PER_AMMO = 3
-_MAX_POWER_UP_AGE = 3 / UPDATE_INTERVAL
+_POWER_UP_DURATION = int(3 / UPDATE_INTERVAL)
 _AMMO_RARITY = max(1, config.AMMO_RARITY)
 _POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
@@ -156,8 +156,7 @@ class Controller(object):
           type=_B.PLAYER_HEAD,
           pos=starting_pos,
           direction=game_pb2.Coordinate(x=1, y=0),
-          player_id=player_info.player_id,
-          created_tick=self._tick)
+          player_id=player_info.player_id)
       self._player_heads_by_secret[player_secret] = head
     self._dirty = True
 
@@ -250,7 +249,9 @@ class Controller(object):
         elif used_item in _POWER_UPS:
           info.score += 1
           pup_block = _B(
-              type=used_item, pos=player_head.pos, created_tick=self._tick)
+              type=used_item,
+              pos=player_head.pos,
+              last_viable_tick=self._tick + _POWER_UP_DURATION)
           if used_item == _B.STAY_STILL:
             for other_info in self._player_infos_by_secret.itervalues():
               if other_info.player_id != info.player_id:
@@ -268,7 +269,7 @@ class Controller(object):
         type=_B.ROCKET,
         pos=rocket_pos,
         direction=direction,
-        created_tick=self._tick,
+        last_viable_tick=self._tick + _ROCKET_DURATION,
         player_id=player_id))
     self._dirty = True
 
@@ -295,6 +296,8 @@ class Controller(object):
     return True
 
   def _Tick(self):
+    tail_duration = _HEAD_MOVE_INTERVAL * (
+        _STARTING_TAIL_LENGTH + self._tick / 50)
     for secret, head in self._player_heads_by_secret.iteritems():
       info = self._player_infos_by_secret[secret]
       power_up = info.power_up[0].type if info.power_up else None
@@ -305,7 +308,7 @@ class Controller(object):
         tail = _B(
             type=_B.PLAYER_TAIL,
             pos=head.pos,
-            created_tick=self._tick,
+            last_viable_tick=self._tick + tail_duration,
             player_id=head.player_id)
         self._player_tails_by_id[head.player_id].append(tail)
         self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
@@ -316,17 +319,15 @@ class Controller(object):
       self._AdvanceBlock(rocket)
 
     # Expire tails.
-    tail_expiry = _HEAD_MOVE_INTERVAL * (
-        _STARTING_TAIL_LENGTH + self._tick / 50)
     for tails in self._player_tails_by_id.values():
-      while tails and (self._tick - tails[0].created_tick >= tail_expiry):
+      while tails and (tails[0].last_viable_tick < self._tick):
         self._static_blocks_grid[tails[0].pos.x][tails[0].pos.y] = None
         tails.pop(0)
 
     # Expire rockets.
     rm_indices = []
     for i, rocket in enumerate(self._rockets):
-      if self._tick - rocket.created_tick >= _MAX_ROCKET_AGE:
+      if rocket.last_viable_tick < self._tick:
         rm_indices.append(i)
     for i in reversed(rm_indices):
       del self._rockets[i]
@@ -334,11 +335,11 @@ class Controller(object):
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
       if info.power_up:
-        if self._tick - info.power_up[0].created_tick > _MAX_POWER_UP_AGE:
+        if info.power_up[0].last_viable_tick < self._tick:
           remaining = info.power_up[1:]
           del info.power_up[:]
           if remaining:
-            remaining[0].created_tick = self._tick
+            remaining[0].last_viable_tick = self._tick + _POWER_UP_DURATION
             info.power_up.extend(remaining)
 
     self._ProcessCollisions()
