@@ -183,11 +183,14 @@ class Server(object):
   def ListenAndUpdateForever(self):
     try:
       while True:
+        t = time.time()
         self._ReadClientRequests()
         updates = self._UpdateController()
         self._DistributeUpdates(updates)
         self._UnregisterInactiveClients()
-        time.sleep(self._UPDATE_INTERVAL)
+        used_dt = time.time() - t
+        if used_dt < self._UPDATE_INTERVAL:
+          time.sleep(self._UPDATE_INTERVAL - used_dt)
     finally:
       print 'Closing listening socket.'
       self._sock.Close()
