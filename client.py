@@ -116,14 +116,14 @@ class Client(object):
     h, w = self._window.getmaxyx()
     if (self._game_state and
         self._game_state.size.x < w and
-        self._game_state.size.y + self._num_message_lines < h):
+        self._game_state.size.y + self._num_message_lines <= h):
       return True
 
     if self._game_state:
       message = (
           'Resize to %dx%d (now %dx%d).' %
           (self._game_state.size.x + 1,
-           self._game_state.size.y + 1 + self._num_message_lines,
+           self._game_state.size.y + self._num_message_lines,
            w,
            h))
     else:
