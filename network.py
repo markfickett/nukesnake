@@ -30,6 +30,7 @@ class _ProtoSocket(object):
   _TIMEOUT = 3.0
   # max size allowed by socket library for UDP is [9214, 9224)
   _BUFFER_SIZE = 9214
+  _CHUNK_REPORT_INTERVAL = 50
   _Segment = collections.namedtuple(
       'Segment', ('chunks', 'indices', 'has_last'))
 
@@ -43,14 +44,29 @@ class _ProtoSocket(object):
     self._next_segment_id = 1
     self._segments_by_id = collections.defaultdict(
         lambda: self._Segment(chunks=[], indices=set(), has_last=[False]))
+
+    # stats on packet size
+    self._num_writes = 0
+    self._num_chunked = 0
     self._min_overflow = float('Inf')
     self._max_safe = 0
 
-  def Write(self, proto, dest_addrs=[]):
+  def Write(self, proto, dest_addrs=[], chunked=False):
     # Note zlib gets consistent 60% compression on large (200x50) worlds.
     data = zlib.compress(proto.SerializeToString()) + self._STOP
+    if self._num_writes >= self._CHUNK_REPORT_INTERVAL:
+      if self._num_chunked > 0:
+        print '%d of last %d writes chunked (%d%%).' % (
+            self._num_chunked,
+            self._num_writes,
+            int(100 * float(self._num_chunked)/self._num_writes))
+      self._num_writes = 0
+      self._num_chunked = 0
+    if not chunked:
+      self._num_writes += 1
     if len(data) > self._BUFFER_SIZE:
-      if hasattr(proto, 'chunk_info') and not proto.HasField('chunk_info'):
+      if hasattr(proto, 'chunk_info') and not chunked:
+        self._num_chunked += 1
         self._WriteChunked(proto, len(data), dest_addrs)
       else:
         print (
@@ -90,7 +106,7 @@ class _ProtoSocket(object):
               chunk_index=chunk_index,
               last_chunk=not remaining_block_list))
       chunk.MergeFrom(proto)
-      self.Write(chunk, dest_addrs)
+      self.Write(chunk, dest_addrs, chunked=True)
       chunk_index += 1
     self._next_segment_id += 1
 
