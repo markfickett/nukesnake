@@ -220,6 +220,20 @@ class Client(object):
       self._window.addstr(block.pos.y, name_x, name, s_attr)
 
 
+def _PrintBlockSummary():
+  print 'Blocks of the World (icons defined in client_config):'
+  longest_name = max(map(len, game_pb2.Block.Type.keys()))
+  row_t = '%{0}s  %s  %s'.format(longest_name)
+  for block_type in game_pb2.Block.Type.values():
+    description = client_config.BLOCK_DESCRIPTIONS.get(block_type)
+    if description:
+      print (
+          row_t %
+          (game_pb2.Block.Type.Name(block_type).replace('_', ' ').capitalize(),
+           client_config.BLOCK_CHARACTERS.get(block_type, '?'),
+           description))
+
+
 if __name__ == '__main__':
   summary_line, _, main_doc = __doc__.partition('\n\n')
   parser = argparse.ArgumentParser(
@@ -238,6 +252,8 @@ if __name__ == '__main__':
   game_server = network.Client(args.host, network.PORT)
 
   locale.setlocale(locale.LC_ALL, '')
+
+  _PrintBlockSummary()
 
   client = Client(game_server)
   names = []

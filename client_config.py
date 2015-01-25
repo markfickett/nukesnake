@@ -82,5 +82,20 @@ ACTION_KEYS = (
 )
 
 
+BLOCK_DESCRIPTIONS = {
+    _B.WALL: 'Walls around the world. Shoot off both sides and you can wrap.',
+    _B.AMMO: 'Each ammo you pick up lets you shoot 3 rockets.',
+    _B.ROCKET: '',
+    _B.MINE: 'Blows up when you shoot it or run into it.',
+    _B.ROCK: 'Steer clear. Takes two shots to destroy.',
+    _B.BROKEN_ROCK: '',
+    _B.TREE: 'Steer clear. Takes one shot to destroy.',
+    _B.STAY_STILL: 'Power-up, freezes other players.',
+    _B.FAST: 'Lets you go as fast as a rocket.',
+    _B.TELEPORT: 'Teleport randomly each time you press action while it\'s on.',
+    _B.NUKE: 'When you shoot, it\'s like a super-mine goes off.',
+}
+
+
 # Process player commands and poll for server updates at this interval.
 UPDATE_INTERVAL_SEC = 1.0 / 120.0
