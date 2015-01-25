@@ -3,16 +3,26 @@
 Drawing inspiration from redblobgames.com/articles/noise/introduction.html .
 """
 
+import math
 import random
 
 
-def MakeHeightMap(width, height, min_value, max_value, blur_size=2):
+def MakeHeightMap(
+    width,
+    height,
+    min_value,
+    max_value,
+    blur_size=2,
+    ripple_amt=2,
+    ripple_period=50):
   rand_vals = []
   smoothed = []
-  for _ in xrange(width):
+  for i in xrange(width):
     row = []
     for _ in xrange(height):
-      row.append(random.randint(min_value, max_value))
+      row.append(
+          random.randint(min_value, max_value) +
+          ripple_amt * math.sin(i / (ripple_period / (math.pi * 2))))
     rand_vals.append(row)
     smoothed.append([None] * height)
   area = (2 * blur_size + 1) ** 2
@@ -27,15 +37,17 @@ def MakeHeightMap(width, height, min_value, max_value, blur_size=2):
 
 
 if __name__ == '__main__':
-  grid = MakeHeightMap(50, 200, 0, 30, blur_size=4)
+  width, height = (200, 50)
+  grid = MakeHeightMap(width, height, 0, 30)
   if False:
     for row in grid:
       for v in row:
         print ('%2d' % v),
       print ''
-  for row in grid:
+  for j in xrange(height):
     row_str = []
-    for v in row:
+    for i in xrange(width):
+      v = grid[i][j]
       if v >= 17:
         c = u'\N{FULL BLOCK}'
       elif v >= 16:
