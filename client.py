@@ -227,9 +227,6 @@ if __name__ == '__main__':
       epilog=main_doc,
       formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument(
-      '-s', '--standalone', action='store_true',
-      help='Run without a network server, all players on the same keyboard.')
-  parser.add_argument(
       '-a', '--ai', action='append', default=[],
       help='Names for AI players to add to the game.')
   parser.add_argument(
@@ -238,10 +235,7 @@ if __name__ == '__main__':
   controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
-  if args.standalone:
-    raise NotImplementedError()
-  else:
-    game_server = network.Client(args.host, network.PORT)
+  game_server = network.Client(args.host, network.PORT)
 
   locale.setlocale(locale.LC_ALL, '')
 
