@@ -178,7 +178,13 @@ class Controller(object):
           pos=game_pb2.Coordinate(x=x, y=y))
 
     if config.TERRAIN:
-      hm = height_map.MakeHeightMap(self._size.x, self._size.y, 0, 20)
+      hm = height_map.MakeHeightMap(
+          self._size.x,
+          self._size.y,
+          0,
+          20,
+          blur_size=1,
+          ripple_amt=random.randint(0, 3))
       for i in xrange(self._size.x):
         for j in xrange(self._size.y):
           if hm[i][j] >= 13:
@@ -204,7 +210,7 @@ class Controller(object):
     if config.MINES:
       if config.MINE_CLUSTERS:
         hm = height_map.MakeHeightMap(
-            self._size.x, self._size.y, 0, 30, blur_size=4)
+            self._size.x, self._size.y, 0, random.randint(28, 30), blur_size=4)
         for i in xrange(self._size.x):
           for j in xrange(self._size.y):
             if hm[i][j] >= 17 and self._static_blocks_grid[i][j] is None:
