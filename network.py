@@ -271,10 +271,17 @@ class Client(object):
     register_req = network_pb2.Request(
         secret=secret, command=network_pb2.Request.REGISTER, name=name)
     self._sock.Write(register_req)
-    resp, unused_sender_addr = self._sock.ReadBlocking()
-    while not resp.HasField('player_id'):
-      # Skip server updates unrelated to registration.
+    try:
       resp, unused_sender_addr = self._sock.ReadBlocking()
+      while not resp.HasField('player_id'):
+        # Skip server updates unrelated to registration.
+        resp, unused_sender_addr = self._sock.ReadBlocking()
+    except socket.timeout, e:
+      raise socket.timeout(
+          errno.EREMOTE,
+          e,
+          'Timeout waiting for registration reply. Do you need to start a'
+          ' server with network.py or specify --host ?')
     return resp.player_id
 
   def Move(self, secret, direction):
