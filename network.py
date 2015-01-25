@@ -14,6 +14,7 @@ import errno
 import collections
 import socket
 import time
+import zlib
 
 import google.protobuf.message
 
@@ -46,7 +47,8 @@ class _ProtoSocket(object):
     self._max_safe = 0
 
   def Write(self, proto, dest_addrs=[]):
-    data = proto.SerializeToString() + self._STOP
+    # Note zlib gets consistent 60% compression on large (200x50) worlds.
+    data = zlib.compress(proto.SerializeToString()) + self._STOP
     if len(data) > self._BUFFER_SIZE:
       if hasattr(proto, 'chunk_info') and not proto.HasField('chunk_info'):
         self._WriteChunked(proto, len(data), dest_addrs)
@@ -113,7 +115,7 @@ class _ProtoSocket(object):
       return None
     self._buffer = rest
     try:
-      proto = self._response_cls.FromString(proto_data)
+      proto = self._response_cls.FromString(zlib.decompress(proto_data))
       if hasattr(proto, 'chunk_info') and proto.HasField('chunk_info'):
         return self._RemoveAndReturnChunked(proto)
       else:
