@@ -226,7 +226,7 @@ def _PrintBlockSummary():
   row_t = '%{0}s  %s  %s'.format(longest_name)
   for block_type in game_pb2.Block.Type.values():
     description = client_config.BLOCK_DESCRIPTIONS.get(block_type)
-    if description:
+    if description is not None:
       print (
           row_t %
           (game_pb2.Block.Type.Name(block_type).replace('_', ' ').capitalize(),
