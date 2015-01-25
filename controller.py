@@ -469,7 +469,7 @@ def AddControllerArgs(parser):
           'up the size of the world from the server; standalone clients '
           'specify their own world size.'))
   parser.add_argument(
-      '-y', '--height', type=int, default=23,
+      '-y', '--height', type=int, default=21,
       help='Height of the world in blocks.')
   parser.add_argument(
       '-r', '--starting-round', type=int, default=0, dest='round',
