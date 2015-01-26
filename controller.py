@@ -405,8 +405,8 @@ class Controller(object):
       if b.type == _B.PLAYER_HEAD:
         self._KillPlayer(b.player_id)
       elif b.type == _B.ROCKET:
-        if b in self._rockets:  # for rocket-rocket collision
-          self._rockets.remove(b)
+        # Mark for immediate expiration rather than finding/deleting now.
+        b.last_viable_tick = self._tick - 1
       elif self._static_blocks_grid[b.pos.x][b.pos.y] is b:
         self._static_blocks_grid[b.pos.x][b.pos.y] = None
         if b.type == _B.PLAYER_TAIL:
