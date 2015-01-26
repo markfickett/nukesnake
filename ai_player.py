@@ -1,11 +1,13 @@
 """Computer-controlled snake."""
 
 
+import random
+import logging
+
 import ai_player_pb2
 import common
 import config
 import game_pb2
-import random
 
 
 _DESIRABLE_BLOCKS = frozenset((
@@ -59,11 +61,11 @@ class Player(object):
       if block.player_id == self._info.player_id:
         player_head = block
     if not player_head:
-      print (
-          'Warning: AI could not find its own head.\n%s\n%s' % (
-              self._info,
-              [str(b).replace('\n', ' ') for b in new_game_state.block
-               if b.type == game_pb2.Block.PLAYER_HEAD]))
+      logging.warning(
+          'AI could not find its own head.\n%s\n%s',
+          self._info,
+          [str(b).replace('\n', ' ') for b in new_game_state.block
+           if b.type == game_pb2.Block.PLAYER_HEAD])
       return
     default_dir = (player_head.direction.x, player_head.direction.y)
 
