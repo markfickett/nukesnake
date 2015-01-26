@@ -410,10 +410,7 @@ class Controller(object):
       elif self._static_blocks_grid[b.pos.x][b.pos.y] is b:
         self._static_blocks_grid[b.pos.x][b.pos.y] = None
         if b.type == _B.PLAYER_TAIL:
-          tails = self._player_tails_by_id[b.player_id]
-          # If two players die at once, tails might already be removed.
-          if b in tails:
-            tails.remove(b)
+          b.last_viable_tick = self._tick - 1
         elif b.type == _B.ROCK:
           self._static_blocks_grid[b.pos.x][b.pos.y] = _B(
               type=_B.BROKEN_ROCK, pos=b.pos)
