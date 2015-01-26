@@ -12,12 +12,14 @@ sockets: binarytides.com/python-socket-programming-tutorial/
 import argparse
 import errno
 import collections
+import logging
 import socket
 import time
 import zlib
 
 import google.protobuf.message
 
+import common
 import controller
 import network_pb2  # protoc --python_out=. *.proto
 
@@ -56,7 +58,8 @@ class _ProtoSocket(object):
     data = zlib.compress(proto.SerializeToString()) + self._STOP
     if self._num_writes >= self._CHUNK_REPORT_INTERVAL:
       if self._num_chunked > 0:
-        print '%d of last %d writes chunked (%d%%).' % (
+        logging.info(
+            '%d of last %d writes chunked (%d%%).',
             self._num_chunked,
             self._num_writes,
             int(100 * float(self._num_chunked)/self._num_writes))
@@ -69,9 +72,9 @@ class _ProtoSocket(object):
         self._num_chunked += 1
         self._WriteChunked(proto, len(data), dest_addrs)
       else:
-        print (
-            'Error: Non-chunkable proto is %d bytes > buffer %d bytes: %s...' %
-            (len(data), self._BUFFER_SIZE, str(proto).replace('\n', ' ')[:100]))
+        logging.error(
+            'Error: Non-chunkable proto is %d bytes > buffer %d bytes: %s...',
+            len(data), self._BUFFER_SIZE, str(proto).replace('\n', ' ')[:100])
       return
     try:
       for dest_addr in dest_addrs:
@@ -80,12 +83,12 @@ class _ProtoSocket(object):
         self._sock.sendto(data, self._default_addr)
       self._max_safe = max(self._max_safe, len(data))
     except socket.error, (n, msg):
-      print 'Error %d sending: %s' % (n, msg)
+      logging.error('Error %d sending: %s' % (n, msg))
       if n == errno.EMSGSIZE:
         self._min_overflow = min(self._min_overflow, len(data))
-        print (
-            'Attempted to send %d bytes (%d safe, %d overflow).' %
-            (len(data), self._max_safe, self._min_overflow))
+        logging.error(
+            'Attempted to send %d bytes (%d safe, %d overflow).',
+            len(data), self._max_safe, self._min_overflow)
       else:
         raise
 
@@ -137,7 +140,7 @@ class _ProtoSocket(object):
       else:
         return proto
     except google.protobuf.message.DecodeError:
-      print 'Decoding error of %r.' % proto_data
+      logging.error('Decoding error of %r.', proto_data)
       return None
 
   def ReadBlocking(self):
@@ -174,7 +177,7 @@ class Server(object):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind((host, port))
     self._sock = _ProtoSocket(s, network_pb2.Request)
-    print 'Listening on %s:%d.' % (host, port)
+    logging.info('Listening on %s:%d.', host, port)
 
     self._active_clients_by_addr = {}
     self._last_round = 0
@@ -192,22 +195,22 @@ class Server(object):
         if used_dt < self._UPDATE_INTERVAL:
           time.sleep(self._UPDATE_INTERVAL - used_dt)
     finally:
-      print 'Closing listening socket.'
+      logging.info('Closing listening socket.')
       self._sock.Close()
 
   def _ReadClientRequests(self):
     request, client_addr = self._sock.Read()
     while request:
-      print (
-          'Client %s:%d sends: %s' %
-          (client_addr[0], client_addr[1], str(request).replace('\n', ' ')))
+      logging.debug(
+          'Client %s:%d sends: %s',
+          client_addr[0], client_addr[1], str(request).replace('\n', ' '))
       if not request.HasField('command'):
-        print 'empty request!'
+        logging.error('Ignoring empty request!')
         break
       self._RecordClientActive(client_addr, request.secret, request.name)
       if request.command == network_pb2.Request.REGISTER:
         player_id = self._game.Register(request.secret, request.name)
-        print 'Registered player %d with Controller.' % player_id
+        logging.info('Registered player %d with Controller.', player_id)
         self._sock.Write(
             network_pb2.Response(player_id=player_id), [client_addr])
       elif request.command == network_pb2.Request.MOVE:
@@ -218,7 +221,7 @@ class Server(object):
         # Client connection info will be auto-removed on timeout.
         self._game.Unregister(request.secret)
       else:
-        print 'Unrecognized client request: %s' % request
+        logging.error('Ignoring unrecognized client request: %s', request)
       request, client_addr = self._sock.Read()
 
   def _RecordClientActive(self, client_addr, secret, name=None):
@@ -252,9 +255,9 @@ class Server(object):
     to_rm = []
     for addr, conn in self._active_clients_by_addr.iteritems():
       if (self._last_round - conn.activity[-1]) > self._CLIENT_ROUNDS_TIMEOUT:
-        print (
-            'Auto un-registered %s (secrets %s) after %s rounds of inactivity.'
-            % (conn.names, conn.secrets, self._CLIENT_ROUNDS_TIMEOUT))
+        logging.info(
+            'Auto un-registered %s (secrets %s) after %s rounds of inactivity.',
+            conn.names, conn.secrets, self._CLIENT_ROUNDS_TIMEOUT)
         for secret in conn.secrets:
           self._game.Unregister(secret)
         to_rm.append(addr)
@@ -306,6 +309,7 @@ class Client(object):
 
 
 if __name__ == '__main__':
+  common.ConfigureLogging()
   summary_line, _, main_doc = __doc__.partition('\n\n')
   parser = argparse.ArgumentParser(
       description=summary_line,
