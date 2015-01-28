@@ -172,7 +172,7 @@ class Client(object):
     info = self._player_info_by_id[player_id]
     player_icon = client_config.PLAYER_ICONS[
         info.player_id % len(client_config.PLAYER_ICONS)]
-    intro = ' %s %s' % (player_icon, info.name)
+    intro = '%4d %s %s' % (info.score, player_icon, info.name)
     palette_attr = curses.color_pair(
         self._player_palettes[info.player_id % len(self._player_palettes)])
     self._window.addstr(
