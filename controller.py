@@ -160,6 +160,8 @@ class Controller(object):
           pos=starting_pos,
           direction=game_pb2.Coordinate(x=1, y=0),
           player_id=player_info.player_id)
+      if not config.AUTO_MOVE:
+        head.move = False
       self._player_heads_by_secret[player_secret] = head
     self._dirty = True
 
@@ -234,6 +236,7 @@ class Controller(object):
     player_head = self._player_heads_by_secret.get(secret)
     if player_head:
       player_head.direction.MergeFrom(direction)
+      player_head.ClearField('move')
 
   def Action(self, secret):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
@@ -337,16 +340,19 @@ class Controller(object):
       if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
           and power_up != _B.STAY_STILL):
-        # Add new tail segments, move heads.
-        tail = _B(
-            type=_B.PLAYER_TAIL,
-            pos=head.pos,
-            last_viable_tick=self._tick + tail_duration,
-            player_id=head.player_id)
-        self._player_tails_by_id[head.player_id].append(tail)
-        self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
+        if head.move:
+          # Add new tail segments, move heads.
+          tail = _B(
+              type=_B.PLAYER_TAIL,
+              pos=head.pos,
+              last_viable_tick=self._tick + tail_duration,
+              player_id=head.player_id)
+          self._player_tails_by_id[head.player_id].append(tail)
+          self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
 
-        self._AdvanceBlock(head)
+          self._AdvanceBlock(head)
+          if not config.AUTO_MOVE:
+            head.move = False
 
     for rocket in self._rockets:
       self._AdvanceBlock(rocket)

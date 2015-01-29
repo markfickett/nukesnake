@@ -8,3 +8,4 @@ MINE_CLUSTERS = True  # Use terrain generation to place mines.
 MINE_RARITY = 100  # Ignored if MINE_CLUSTERS is on.
 TERRAIN = True
 POWER_UP_RARITY = 500
+AUTO_MOVE = True  # If False, only move forward once per player move command.

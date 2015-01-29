@@ -41,6 +41,7 @@ message Block {
   optional Coordinate direction = 3;
   optional uint64 last_viable_tick = 4;
   optional uint32 player_id = 5;
+  optional bool move = 6 [default = true];  // If false, do not move this block.
 }
 
 message Stage {
