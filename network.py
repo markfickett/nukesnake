@@ -167,7 +167,7 @@ class _ProtoSocket(object):
     self._sock.close()
 
 
-_UPDATE_INTERVAL = 1 / 20.0
+_UPDATE_INTERVAL = 1 / 60.0
 
 
 class Server(object):
