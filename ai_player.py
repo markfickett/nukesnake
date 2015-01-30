@@ -1,8 +1,9 @@
 """Computer-controlled snake."""
 
 
-import random
 import logging
+import random
+import time
 
 import ai_player_pb2
 import common
@@ -16,12 +17,14 @@ _DESIRABLE_BLOCKS = frozenset((
     game_pb2.Block.FAST,
     game_pb2.Block.NUKE,
 ))
+_ROUND_START_DELAY = 5.0
 
 
 class Player(object):
   def __init__(self, secret, player_info):
     self._secret = secret
     self._info = player_info
+    self._round_start_time = None
 
     self._SetAbilities(0)
 
@@ -44,9 +47,19 @@ class Player(object):
       self._diagonals = False
       self._pick_desirable_blocks = False
 
+  def _MaybeStartRound(self, game_state, game_server):
+    if game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
+      if self._round_start_time is None:
+        self._round_start_time = time.time()
+      elif time.time() - self._round_start_time > _ROUND_START_DELAY:
+        game_server.Action(self._secret)
+    else:
+      self._round_start_time = None
+
   def UpdateAndDoCommands(self, new_game_state, game_server):
     if new_game_state.stage != game_pb2.Stage.ROUND:
       self._SetAbilities(new_game_state.round_num)
+      self._MaybeStartRound(new_game_state, game_server)
       return
 
     for player_info in new_game_state.player_info:
