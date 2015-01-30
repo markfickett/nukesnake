@@ -246,10 +246,18 @@ if __name__ == '__main__':
   parser.add_argument(
       '--host', default='localhost',
       help='Server to connect to for network play.')
+  parser.add_argument(
+      '-n', '--no-network', action='store_true', dest='nonetwork',
+      help='Run the game server in the same process as the client.')
   controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
-  game_server = network.Client(args.host, network.PORT)
+  if args.nonetwork:
+    game_server = network.LocalThreadClient(args.width, args.height)
+    game_server.daemon = True
+    game_server.start()
+  else:
+    game_server = network.Client(args.host, network.PORT)
 
   locale.setlocale(locale.LC_ALL, '')
 

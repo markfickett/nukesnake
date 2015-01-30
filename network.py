@@ -14,6 +14,7 @@ import errno
 import collections
 import logging
 import socket
+import threading
 import time
 import zlib
 
@@ -166,8 +167,10 @@ class _ProtoSocket(object):
     self._sock.close()
 
 
+_UPDATE_INTERVAL = 1 / 20.0
+
+
 class Server(object):
-  _UPDATE_INTERVAL = 1 / 20.0
   _CLIENT_ROUNDS_TIMEOUT = 3
   _ClientConnection = collections.namedtuple(
       'ClientConnection', ('activity', 'secrets', 'names'))
@@ -192,8 +195,8 @@ class Server(object):
         self._DistributeUpdates(updates)
         self._UnregisterInactiveClients()
         used_dt = time.time() - t
-        if used_dt < self._UPDATE_INTERVAL:
-          time.sleep(self._UPDATE_INTERVAL - used_dt)
+        if used_dt < _UPDATE_INTERVAL:
+          time.sleep(_UPDATE_INTERVAL - used_dt)
     finally:
       logging.info('Closing listening socket.')
       self._sock.Close()
@@ -306,6 +309,49 @@ class Client(object):
   def Unregister(self, secret):
     self._sock.Write(network_pb2.Request(
         secret=secret, command=network_pb2.Request.UNREGISTER))
+
+
+class LocalThreadClient(threading.Thread):
+  def __init__(self, width, height):
+    self._controller = controller.Controller(width, height)
+    self._last_state_hash = None
+    self._last_state = None
+    self._lock = threading.Lock()
+    threading.Thread.__init__(self)
+
+  def Register(self, secret, name):
+    with self._lock:
+      return self._controller.Register(secret, name)
+
+  def Unregister(self, secret):
+    with self._lock:
+      return self._controller.Unregister(secret, name)
+
+  def Move(self, secret, direction):
+    with self._lock:
+      return self._controller.Move(secret, direction)
+
+  def Action(self, secret):
+    with self._lock:
+      return self._controller.Action(secret)
+
+  def GetUpdates(self):
+    with self._lock:
+      return [self._last_state]
+
+  def run(self):
+    while True:
+      t = time.time()
+      with self._lock:
+        new_state = None
+        if self._controller.Update():
+          self._last_state_hash, new_state = self._controller.GetGameState(
+              self._last_state_hash)
+        if new_state:
+          self._last_state = new_state
+      used_dt = time.time() - t
+      if used_dt < _UPDATE_INTERVAL:
+        time.sleep(_UPDATE_INTERVAL - used_dt)
 
 
 if __name__ == '__main__':
