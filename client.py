@@ -235,6 +235,10 @@ def _PrintBlockSummary():
 
 
 if __name__ == '__main__':
+  log_filename = '/tmp/nukesnake_client_log.txt'
+  print 'log file %s' % log_filename
+  common.ConfigureLogging(filename=log_filename)
+
   summary_line, _, main_doc = __doc__.partition('\n\n')
   parser = argparse.ArgumentParser(
       description=summary_line,
