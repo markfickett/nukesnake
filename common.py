@@ -7,7 +7,8 @@ def MakeGrid(size):
   return grid
 
 
-def ConfigureLogging():
+def ConfigureLogging(**kwargs):
   logging.basicConfig(
       format='%(levelname)s %(asctime)s %(filename)s:%(lineno)s: %(message)s',
-      level=logging.INFO)
+      level=logging.INFO,
+      **kwargs)
