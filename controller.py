@@ -472,13 +472,13 @@ def _RandomPosWithin(world_size):
 
 def AddControllerArgs(parser):
   parser.add_argument(
-      '-x', '--width', type=int, default=79,
+      '-x', '--width', type=int, default=100,
       help=(
           'Width of the world in blocks (characters). Network clients pick '
           'up the size of the world from the server; standalone clients '
           'specify their own world size.'))
   parser.add_argument(
-      '-y', '--height', type=int, default=21,
+      '-y', '--height', type=int, default=30,
       help='Height of the world in blocks.')
   parser.add_argument(
       '-r', '--starting-round', type=int, default=0, dest='round',
