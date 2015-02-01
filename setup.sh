@@ -17,6 +17,9 @@ cd protobuf-${VER}
 make
 make check
 sudo make install
+# If this fails, check your LD_LIBRARY_PATH.
+# stackoverflow.com/questions/17889799/libraries-in-usr-local-lib-not-found
+protoc --version
 
 cd python
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
