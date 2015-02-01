@@ -1,14 +1,30 @@
+#!/bin/bash
 # Install dependencies for Nuke Snake.
+set -e
+
 mkdir build
+# Sudo now to avoid password prompt later.
+sudo touch build
 cd build
 
 # Protobuf
-curl -O https://protobuf.googlecode.com/files/protobuf-2.5.0.tar.gz
-tar xvfz protobuf-2.5.0.tar.gz
-cd protobuf-2.5.0
-./configure && make && sudo make install
+VER=2.6.1
+curl -L -O https://github.com/google/protobuf/releases/download/v${VER}/protobuf-${VER}.tar.gz
+tar xvfz protobuf-${VER}.tar.gz
+
+cd protobuf-${VER}
+./configure
+make
+make check
+sudo make install
+
 cd python
-python setup.py build && python setup.py test && sudo python setup.py install
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION=2
+python setup.py build
+python setup.py google_test
+python setup.py test --cpp_implementation
+sudo python setup.py install --cpp_implementation
 cd ..
 cd ..
 
