@@ -3,6 +3,7 @@
 import argparse
 import collections
 import itertools
+import logging
 import random
 import time
 
@@ -180,13 +181,18 @@ class Controller(object):
           pos=game_pb2.Coordinate(x=x, y=y))
 
     if config.TERRAIN:
+      ripple_total = random.randint(-1, 1)
+      ripple_x = random.randint(-1, 2)
+      ripple_y = ripple_total - ripple_x
+      logging.debug(
+          'Generating terrain with ripple (%d, %d).', ripple_x, ripple_y)
       hm = height_map.MakeHeightMap(
           self._size.x,
           self._size.y,
           0,
           20,
           blur_size=1,
-          ripple_amt=random.randint(0, 3))
+          ripple_amt=(ripple_x, ripple_y))
       for i in xrange(self._size.x):
         for j in xrange(self._size.y):
           if hm[i][j] >= 13:
