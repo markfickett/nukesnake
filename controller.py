@@ -25,6 +25,8 @@ _AMMO_RARITY = max(1, config.AMMO_RARITY)
 _POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
+_MAX_POS_TRIES = 50
+_POS_CLEARANCE = 2
 
 _NUKE_PROPORTION = 0.1
 _NUKE_SIZE = 5
@@ -135,18 +137,22 @@ class Controller(object):
   def _GetStartingPos(self):
     tries = 0
     collides = True
-    while collides and tries < 10:
+    while collides and tries < _MAX_POS_TRIES:
       starting_pos = _RandomPosWithin(self._size)
       collides = False
       tries += 1
-      for dx in xrange(-1, 2):
-        for dy in xrange(-1, 2):
+      for dx in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
+        for dy in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
           hit = self._static_blocks_grid[
               (starting_pos.x + dx) % self._size.x][
               (starting_pos.y + dy) % self._size.y]
           if hit is not None:
             collides = True
             break
+    if collides:
+      logging.info(
+          'Did not find a starting position with %d clearance after %d tries.',
+          _POS_CLEARANCE, _MAX_POS_TRIES)
     return starting_pos
 
   def _AddPlayerHeadResetPos(self, player_secret, player_info):
