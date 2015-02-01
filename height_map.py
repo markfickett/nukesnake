@@ -13,16 +13,19 @@ def MakeHeightMap(
     min_value,
     max_value,
     blur_size=2,
-    ripple_amt=2,
-    ripple_period=50):
+    ripple_amt=(0, 0),
+    ripple_period=(50, 30)):
   rand_vals = []
   smoothed = []
+  scale_x = 1.0 / (ripple_period[0] / (math.pi * 2))
+  scale_y = 1.0 / (ripple_period[1] / (math.pi * 2))
   for i in xrange(width):
     row = []
-    for _ in xrange(height):
+    for j in xrange(height):
       row.append(
           random.randint(min_value, max_value) +
-          ripple_amt * math.sin(i / (ripple_period / (math.pi * 2))))
+          ripple_amt[0] * math.sin(i * scale_x) +
+          ripple_amt[1] * math.sin(j * scale_y))
     rand_vals.append(row)
     smoothed.append([None] * height)
   area = (2 * blur_size + 1) ** 2
@@ -38,7 +41,7 @@ def MakeHeightMap(
 
 if __name__ == '__main__':
   width, height = (200, 50)
-  grid = MakeHeightMap(width, height, 0, 30)
+  grid = MakeHeightMap(width, height, 0, 30, ripple_amt=(2, 1))
   if False:
     for row in grid:
       for v in row:
