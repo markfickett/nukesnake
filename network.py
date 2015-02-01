@@ -18,11 +18,9 @@ import threading
 import time
 import zlib
 
-import google.protobuf.message
-
+from common import network_pb2, message
 import common
 import controller
-import network_pb2  # protoc --python_out=. *.proto
 
 
 PORT = 9988
@@ -140,7 +138,7 @@ class _ProtoSocket(object):
         return self._RemoveAndReturnChunked(proto)
       else:
         return proto
-    except google.protobuf.message.DecodeError:
+    except message.DecodeError:
       logging.error('Decoding error of %r.', proto_data)
       return None
 

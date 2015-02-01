@@ -1,7 +1,7 @@
 """Client key controls and behavior configuration."""
 
+from common import game_pb2
 import curses
-import game_pb2
 _B = game_pb2.Block
 
 

@@ -7,11 +7,10 @@ import logging
 import random
 import time
 
+from common import game_pb2, network_pb2
 import common
 import config
 import height_map
-import game_pb2  # protoc --python_out=. *.proto
-import network_pb2
 
 
 UPDATE_INTERVAL = max(0.05, config.SPEED)

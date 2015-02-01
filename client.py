@@ -12,11 +12,11 @@ import locale
 import random
 import time
 
+from common import game_pb2
 import ai_player
 import client_config
 import common
 import controller
-import game_pb2
 import network
 
 

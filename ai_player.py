@@ -5,10 +5,9 @@ import logging
 import random
 import time
 
-import ai_player_pb2
+from common import ai_player_pb2, game_pb2
 import common
 import config
-import game_pb2
 
 
 _DESIRABLE_BLOCKS = frozenset((
