@@ -73,7 +73,9 @@ class Client(object):
           local_player_index += 1
 
       updated = self._UpdateGameState()
-      if updated:
+      if updated or (
+          self._game_state and
+          self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS):
         for ai_player in self._ai_players_by_id.itervalues():
           ai_player.UpdateAndDoCommands(self._game_state, self._game_server)
       if self._CheckWindowSize() and (updated or key_code == curses.KEY_RESIZE):
