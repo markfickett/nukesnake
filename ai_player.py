@@ -51,7 +51,9 @@ class Player(object):
       if self._round_start_time is None:
         self._round_start_time = time.time()
       elif time.time() - self._round_start_time > _ROUND_START_DELAY:
+        logging.info('AI %s starts the round.', self._info.name)
         game_server.Action(self._secret)
+        self._round_start_time += _ROUND_START_DELAY  # Prevent repeat actions.
     else:
       self._round_start_time = None
 
