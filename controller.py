@@ -152,6 +152,7 @@ class Controller(object):
       logging.info(
           'Did not find a starting position with %d clearance after %d tries.',
           _POS_CLEARANCE, _MAX_POS_TRIES)
+      self._static_blocks_grid[starting_pos.x][starting_pos.y] = None
     return starting_pos
 
   def _AddPlayerHeadResetPos(self, player_secret, player_info):
