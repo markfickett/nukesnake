@@ -1,6 +1,6 @@
 WALLS = True
 SPEED = 0.08  # Larger numbers are slower.
-STARTING_TAIL_LENGTH = 50
+STARTING_TAIL_LENGTH = 10
 INFINITE_AMMO = False
 AMMO_RARITY = 400  # 1 in this many blocks is ammo.
 MINES = True

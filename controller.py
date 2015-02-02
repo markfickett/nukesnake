@@ -17,6 +17,7 @@ UPDATE_INTERVAL = max(0.05, config.SPEED)
 _PAUSE_TICKS = 2 / UPDATE_INTERVAL
 
 _STARTING_TAIL_LENGTH = max(0, config.STARTING_TAIL_LENGTH)
+_TAIL_GROWTH_TICKS = 100
 _ROCKET_DURATION = 300
 _ROCKETS_PER_AMMO = 3
 _POWER_UP_DURATION = int(3 / UPDATE_INTERVAL)
@@ -345,7 +346,7 @@ class Controller(object):
 
   def _Tick(self):
     tail_duration = _HEAD_MOVE_INTERVAL * (
-        _STARTING_TAIL_LENGTH + self._tick / 50)
+        _STARTING_TAIL_LENGTH + self._tick / _TAIL_GROWTH_TICKS)
     for secret, head in self._player_heads_by_secret.iteritems():
       info = self._player_infos_by_secret[secret]
       power_up = info.power_up[0].type if info.power_up else None
