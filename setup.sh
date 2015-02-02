@@ -17,14 +17,17 @@ cd protobuf-${VER}
 make
 make check
 sudo make install
-# If this fails, check your LD_LIBRARY_PATH.
+# If this fails (errors about libprotobuf.so.9), check your LD_LIBRARY_PATH.
 # stackoverflow.com/questions/17889799/libraries-in-usr-local-lib-not-found
 protoc --version
 
 cd python
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION=2
+# If the build fails, you may need to install setuptools:
+# pypi.python.org/pypi/setuptools
 python setup.py build
+# This may fail if an older version of protobuf is installed; try removing it.
 python setup.py google_test
 python setup.py test --cpp_implementation
 sudo python setup.py install --cpp_implementation
