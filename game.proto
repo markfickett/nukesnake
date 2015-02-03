@@ -4,7 +4,7 @@ message PlayerInfo {
   required uint32 player_id = 1;
   required string name = 2;
   optional bool alive = 3;
-  optional uint32 score = 4;
+  optional int32 score = 4;
   repeated Block.Type inventory = 5;
   repeated Block power_up = 6;
 }
