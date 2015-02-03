@@ -25,9 +25,14 @@ class Player(object):
     self._info = player_info
     self._round_start_time = None
 
+    self._last_round = 0
     self._SetAbilities(0)
 
   def _SetAbilities(self, round_num):
+    while self._last_round + 1 < round_num:
+      # Assume rounds are encountered sequentially, below. If any are skipped,
+      # fill in here.
+      self._SetAbilities(self._last_round + 1)
 
     if round_num >= 13:
       self._view_dist = 3
@@ -45,6 +50,7 @@ class Player(object):
       self._shooting = ai_player_pb2.Shoot.NEVER
       self._diagonals = False
       self._pick_desirable_blocks = False
+    self._last_round = round_num
 
   def _MaybeStartRound(self, game_state, game_server):
     if game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:

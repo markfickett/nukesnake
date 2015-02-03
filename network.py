@@ -310,8 +310,8 @@ class Client(object):
 
 
 class LocalThreadClient(threading.Thread):
-  def __init__(self, width, height, mode):
-    self._controller = controller.Controller(width, height, mode)
+  def __init__(self, width, height, mode, round):
+    self._controller = controller.Controller(width, height, mode, round)
     self._last_state_hash = None
     self._last_state = None
     self._lock = threading.Lock()

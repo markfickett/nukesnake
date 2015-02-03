@@ -261,7 +261,7 @@ if __name__ == '__main__':
 
   if args.nonetwork:
     game_server = network.LocalThreadClient(
-        args.width, args.height, args.mode)
+        args.width, args.height, args.mode, args.round)
     game_server.daemon = True
     game_server.start()
   else:
