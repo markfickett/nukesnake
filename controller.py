@@ -41,7 +41,7 @@ _POWER_UPS = [
 
 
 class Controller(object):
-  def __init__(self, width, height, starting_round=0):
+  def __init__(self, width, height, mode, starting_round=0):
     self._size = game_pb2.Coordinate(
         x=max(4, width),
         y=max(4, height))
@@ -50,7 +50,10 @@ class Controller(object):
     self._next_player_id = 0
     self._player_infos_by_secret = {}
 
-    self._scoring = scoring.ClearMines()
+    self._scoring = {
+        game_pb2.Mode.BATTLE: scoring.Battle,
+        game_pb2.Mode.CLEAR_MINES: scoring.ClearMines,
+    }[mode]()
 
     self._dirty = True
     self._state_hash = 0
@@ -506,3 +509,7 @@ def AddControllerArgs(parser):
   parser.add_argument(
       '-r', '--starting-round', type=int, default=0, dest='round',
       help='Round number to start on, controlling available power-ups etc.')
+  parser.add_argument(
+      '-m', '--mode', type=game_pb2.Mode.Id.Value, default=game_pb2.Mode.BATTLE,
+      help='Goals and scoring for the game, one of %s.' %
+           ', '.join(game_pb2.Mode.Id.keys()))

@@ -52,3 +52,10 @@ message Stage {
     ROUND_END = 4;
   }
 }
+
+message Mode {
+  enum Id {
+    BATTLE = 1;
+    CLEAR_MINES = 2;
+  }
+}

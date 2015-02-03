@@ -173,8 +173,8 @@ class Server(object):
   _ClientConnection = collections.namedtuple(
       'ClientConnection', ('activity', 'secrets', 'names'))
 
-  def __init__(self, host, port, width, height, starting_round):
-    self._game = controller.Controller(width, height, starting_round)
+  def __init__(self, host, port, width, height, mode, starting_round):
+    self._game = controller.Controller(width, height, mode, starting_round)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind((host, port))
     self._sock = _ProtoSocket(s, network_pb2.Request)
@@ -310,8 +310,8 @@ class Client(object):
 
 
 class LocalThreadClient(threading.Thread):
-  def __init__(self, width, height):
-    self._controller = controller.Controller(width, height)
+  def __init__(self, width, height, mode):
+    self._controller = controller.Controller(width, height, mode)
     self._last_state_hash = None
     self._last_state = None
     self._lock = threading.Lock()
@@ -365,5 +365,6 @@ if __name__ == '__main__':
   controller.AddControllerArgs(parser)
   args = parser.parse_args()
 
-  server = Server(args.host, PORT, args.width, args.height, args.round)
+  server = Server(
+      args.host, PORT, args.width, args.height, args.mode, args.round)
   server.ListenAndUpdateForever()
