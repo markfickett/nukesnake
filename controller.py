@@ -11,6 +11,7 @@ from common import game_pb2, network_pb2
 import common
 import config
 import height_map
+import scoring
 
 
 UPDATE_INTERVAL = max(0.05, config.SPEED)
@@ -49,6 +50,8 @@ class Controller(object):
     self._next_player_id = 0
     self._player_infos_by_secret = {}
 
+    self._scoring = scoring.ClearMines()
+
     self._dirty = True
     self._state_hash = 0
     self._stage = None
@@ -77,8 +80,9 @@ class Controller(object):
 
       # If (almost) everyone left, reset more things.
       reset_stats = False
-      if len(self._player_infos_by_secret) <= 1:
+      if not self._scoring.CanStartRound():
         self._round_num = self._starting_round
+        self._scoring.Reset()
         reset_stats = True
       else:
         self._round_num += 1
@@ -88,9 +92,16 @@ class Controller(object):
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = True
         if reset_stats:
-          info.score = 0
           del info.inventory[:]
           del info.power_up[:]
+
+      def _GenerateAllBLocks():
+        for row in self._static_blocks_grid:
+          for block in row:
+            if block:
+              yield block
+
+      self._scoring.TerrainChanged(_GenerateAllBLocks())
 
   def GetGameState(self, last_hash):
     if self._dirty:
@@ -126,8 +137,8 @@ class Controller(object):
     info = game_pb2.PlayerInfo(
         player_id=self._next_player_id,
         name=name,
-        alive=self._stage == game_pb2.Stage.COLLECT_PLAYERS,
-        score=0)
+        alive=self._stage == game_pb2.Stage.COLLECT_PLAYERS)
+    self._scoring.AddPlayer(info)
     self._player_infos_by_secret[secret] = info
     self._next_player_id += 1
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
@@ -177,6 +188,7 @@ class Controller(object):
     self._player_infos_by_secret.pop(secret, None)
     head = self._player_heads_by_secret.pop(secret, None)
     if head:
+      self._scoring.RemovePlayer(head.player_id)
       self._KillPlayer(head.player_id)
       self._dirty = True
 
@@ -253,7 +265,7 @@ class Controller(object):
 
   def Action(self, secret):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
-      if len(self._player_infos_by_secret) > 1:
+      if self._scoring.CanStartRound():
         self._start_requested = True
     elif self._stage == game_pb2.Stage.ROUND:
       player_head = self._player_heads_by_secret.get(secret)
@@ -270,15 +282,14 @@ class Controller(object):
         elif config.INFINITE_AMMO:
           used_item = _B.ROCKET
 
+        self._scoring.ItemUsed(info.player_id, used_item)
         if used_item == _B.ROCKET:
           self._AddRocket(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item == _B.NUKE:
-          info.score += 1
           self._AddNuke(
               player_head.pos, player_head.direction, player_head.player_id)
         elif used_item in _POWER_UPS:
-          info.score += 1
           pup_block = _B(
               type=used_item,
               pos=player_head.pos,
@@ -396,8 +407,7 @@ class Controller(object):
 
     self._ProcessCollisions()
 
-    if len(filter(
-        lambda p: p.alive, self._player_infos_by_secret.values())) <= 1:
+    if self._scoring.IsRoundEnd():
       self._SetStage(game_pb2.Stage.ROUND_END)
 
     self._dirty = True
@@ -441,6 +451,8 @@ class Controller(object):
                 continue
               self._AddRocket(
                   b.pos, game_pb2.Coordinate(x=i, y=j), b.player_id)
+      self._scoring.ItemDestroyed(
+          hit_by.player_id if hit_by.HasField('player_id') else None, b)
 
   def _CheckIsPlayerHeadPickUpItem(self, head, block):
     if not head.type == _B.PLAYER_HEAD:
@@ -473,8 +485,6 @@ class Controller(object):
         # If this is after Unregister, there may be no PlayerInfo for the
         # player being killed.
         info.alive = False
-      elif info.alive:
-        info.score += 1
 
 
 def _RandomPosWithin(world_size):
