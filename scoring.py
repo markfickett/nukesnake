@@ -62,16 +62,20 @@ class Battle(_Base):
 
 
 class ClearMines(_Base):
-  """Cooperative: Clear all the mines to proceed to the next round."""
+  """Cooperative: Clear all the mines and nukes to proceed to the next round."""
   _TYPES_TO_CLEAR = (_B.MINE, _B.NUKE)
   def __init__(self):
     _Base.__init__(self)
     self._mine_coords = set()
 
   def CanStartRound(self):
+    """Requires at least one player."""
     return len(self._player_infos_by_id) > 0
 
   def TerrainChanged(self, blocks):
+    """Records the new mines. Penalizes everyone for mines not cleared."""
+    for info in self._player_infos_by_id.itervalues():
+      info.score -= len(self._mine_coords)
     self._mine_coords = set()
     for block in blocks:
       if block.type in self._TYPES_TO_CLEAR:
@@ -79,9 +83,11 @@ class ClearMines(_Base):
     logging.debug('%d mines to clear', len(self._mine_coords))
 
   def IsRoundEnd(self):
+    """Returns True when all explosives are cleared or everyone is dead."""
     return len(self._mine_coords) <= 0 or self._num_alive <= 0
 
   def ItemDestroyed(self, by_player_id, item):
+    """Awards points for clearing mines, penalizes for killing players."""
     if item.type in self._TYPES_TO_CLEAR:
       if by_player_id is not None:
         self._player_infos_by_id[by_player_id].score += 1
@@ -93,7 +99,7 @@ class ClearMines(_Base):
       if len(self._mine_coords) <= 0:
         for info in self._player_infos_by_id.itervalues():
           if info.alive:
-            info.score += 5
+            info.score += 20
     elif item.type is _B.PLAYER_HEAD:
       if by_player_id is not None:
         self._player_infos_by_id[by_player_id].score -= 5
