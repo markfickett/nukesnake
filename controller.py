@@ -14,14 +14,11 @@ import height_map
 import scoring
 
 
-UPDATE_INTERVAL = max(0.05, config.SPEED)
-_PAUSE_TICKS = 2 / UPDATE_INTERVAL
 
 _STARTING_TAIL_LENGTH = max(0, config.STARTING_TAIL_LENGTH)
 _TAIL_GROWTH_TICKS = 100
-_ROCKET_DURATION = 300
+_ROCKET_DURATION_TICKS = 300
 _ROCKETS_PER_AMMO = 3
-_POWER_UP_DURATION = int(3 / UPDATE_INTERVAL)
 _AMMO_RARITY = max(1, config.AMMO_RARITY)
 _POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
 _MINE_RARITY = max(2, config.MINE_RARITY)
@@ -64,7 +61,23 @@ class Controller(object):
     self._starting_round = max(0, int(starting_round))
     self._round_num = self._starting_round
 
+    self._SetSpeeds()
     self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
+
+  def _SetSpeeds(self):
+    slowest = 0.2  # one tick every .2s
+    fastest = 0.01
+    # This is inverse acceleration: larger numbers mean it takes more rounds
+    # to get to faster speeds.
+    rate = 10.0
+    self._update_interval = slowest / (self._round_num / rate + 1.0) + fastest
+    self._power_up_duration = int(3 / self._update_interval)
+    self._pause_duration_ticks = int(2 / self._update_interval)
+    logging.debug(
+      'Update interval %.2fs power-up %d ticks pause %d ticks.',
+      self._update_interval,
+      self._power_up_duration,
+      self._pause_duration_ticks)
 
   def _SetStage(self, stage):
     if self._stage == stage:
@@ -89,6 +102,7 @@ class Controller(object):
         reset_stats = True
       else:
         self._round_num += 1
+      self._SetSpeeds()
 
       self._BuildStaticBlocks()
       for secret, info in self._player_infos_by_secret.iteritems():
@@ -299,7 +313,7 @@ class Controller(object):
           pup_block = _B(
               type=used_item,
               pos=player_head.pos,
-              last_viable_tick=self._tick + _POWER_UP_DURATION)
+              last_viable_tick=self._tick + self._power_up_duration)
           if used_item == _B.STAY_STILL:
             for other_info in self._player_infos_by_secret.itervalues():
               if other_info.player_id != info.player_id:
@@ -320,7 +334,7 @@ class Controller(object):
         type=_B.ROCKET,
         pos=rocket_pos,
         direction=direction,
-        last_viable_tick=self._tick + _ROCKET_DURATION,
+        last_viable_tick=self._tick + _ROCKET_DURATION_TICKS,
         player_id=player_id))
     self._dirty = True
 
@@ -338,14 +352,14 @@ class Controller(object):
             direction=game_pb2.Coordinate(
                 x=(-1 if i < 0 else 1) if abs(i) >= abs(j) else 0,
                 y=(-1 if j < 0 else 1) if abs(j) >= abs(i) else 0),
-            last_viable_tick=self._tick + _ROCKET_DURATION,
+            last_viable_tick=self._tick + _ROCKET_DURATION_TICKS,
             player_id=player_id))
     self._dirty = True
 
   def Update(self):
     t = time.time()
     dt = t - self._last_update
-    if dt < UPDATE_INTERVAL:
+    if dt < self._update_interval:
       return False
     self._last_update = t
 
@@ -353,12 +367,12 @@ class Controller(object):
       if self._start_requested:
         self._SetStage(game_pb2.Stage.ROUND_START)
     elif self._stage == game_pb2.Stage.ROUND_START:
-      if self._pause_ticks > _PAUSE_TICKS:
+      if self._pause_ticks > self._pause_duration_ticks:
         self._SetStage(game_pb2.Stage.ROUND)
     elif self._stage == game_pb2.Stage.ROUND:
       self._Tick()
     elif self._stage == game_pb2.Stage.ROUND_END:
-      if self._pause_ticks > _PAUSE_TICKS:
+      if self._pause_ticks > self._pause_duration_ticks:
         self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
     self._tick += 1
     self._pause_ticks += 1
@@ -411,7 +425,7 @@ class Controller(object):
           remaining = info.power_up[1:]
           del info.power_up[:]
           if remaining:
-            remaining[0].last_viable_tick = self._tick + _POWER_UP_DURATION
+            remaining[0].last_viable_tick = self._tick + self._power_up_duration
             info.power_up.extend(remaining)
 
     self._ProcessCollisions()
