@@ -288,7 +288,10 @@ class Controller(object):
         self._scoring.ItemUsed(info.player_id, used_item)
         if used_item == _B.ROCKET:
           self._AddRocket(
-              player_head.pos, player_head.direction, player_head.player_id)
+              player_head.pos,
+              player_head.direction,
+              player_head.player_id,
+              initial_advance=True)
         elif used_item == _B.NUKE:
           self._AddNuke(
               player_head.pos, player_head.direction, player_head.player_id)
@@ -306,10 +309,13 @@ class Controller(object):
           if used_item == _B.TELEPORT:
             player_head.pos.MergeFrom(self._GetStartingPos())
 
-  def _AddRocket(self, origin, direction, player_id):
-    rocket_pos = game_pb2.Coordinate(
-        x=(origin.x + direction.x) % self._size.x,
-        y=(origin.y + direction.y) % self._size.y)
+  def _AddRocket(self, origin, direction, player_id, initial_advance=False):
+    if initial_advance:
+      rocket_pos = game_pb2.Coordinate(
+          x=(origin.x + direction.x) % self._size.x,
+          y=(origin.y + direction.y) % self._size.y)
+    else:
+      rocket_pos = origin
     self._rockets.append(_B(
         type=_B.ROCKET,
         pos=rocket_pos,
