@@ -34,6 +34,7 @@ _POWER_UPS = [
   _B.FAST,
   _B.STAY_STILL,
   _B.TELEPORT,
+  _B.INVINCIBLE,
 ]
 
 
@@ -206,7 +207,7 @@ class Controller(object):
     head = self._player_heads_by_secret.pop(secret, None)
     if head:
       self._scoring.RemovePlayer(head.player_id)
-      self._KillPlayer(head.player_id)
+      self._KillPlayer(head.player_id, force=True)
       self._dirty = True
 
   def _BuildStaticBlocks(self):
@@ -494,12 +495,16 @@ class Controller(object):
       return False
     return True
 
-  def _KillPlayer(self, player_id):
+  def _KillPlayer(self, player_id, force=False):
     secret = None
     for secret, head in self._player_heads_by_secret.iteritems():
       if head.player_id == player_id:
         break
     if secret:
+      if not force:
+        info = self._player_infos_by_secret[secret]
+        if info.power_up and info.power_up[0].type == _B.INVINCIBLE:
+          return
       del self._player_heads_by_secret[secret]
     # Tail blocks will no longer update, but are already in statics.
     self._player_tails_by_id.pop(player_id, None)

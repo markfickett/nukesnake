@@ -35,6 +35,7 @@ BLOCK_CHARACTERS = {
   _B.STAY_STILL: u'\N{Black Chess Rook}',
   _B.FAST: u'\U0001f407',  # Rabbit
   _B.TELEPORT: u'\U0001f680',  # Rocket
+  _B.INVINCIBLE: u'\N{Bell Symbol}',
 }
 # A fallback for block types with no other character assigned.
 DEFAULT_BLOCK_CHARACTER = '?'
@@ -46,6 +47,7 @@ BLOCK_FOREGROUNDS = {
   curses.COLOR_GREEN: (_B.WALL, _B.TREE),
   curses.COLOR_MAGENTA: (_B.MINE, _B.ROCKET),
   curses.COLOR_YELLOW: (_B.NUKE,),
+  curses.COLOR_RED: (_B.INVINCIBLE,),
 }
 BG_COLOR = curses.COLOR_BLACK
 # Colors to be used for players, used in the order players join.
@@ -94,6 +96,7 @@ BLOCK_DESCRIPTIONS = {
     _B.STAY_STILL: 'Power-up, freezes other players.',
     _B.FAST: 'Lets you go as fast as a rocket.',
     _B.TELEPORT: 'Teleport randomly each time you press action while it\'s on.',
+    _B.INVINCIBLE: 'Plow through walls, terrain, mines, other players!',
     _B.NUKE: 'When you shoot, it\'s like a super-mine goes off.',
 }
 

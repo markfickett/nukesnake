@@ -14,6 +14,7 @@ _DESIRABLE_BLOCKS = frozenset((
     game_pb2.Block.AMMO,
     game_pb2.Block.STAY_STILL,
     game_pb2.Block.FAST,
+    game_pb2.Block.INVINCIBLE,
     game_pb2.Block.NUKE,
 ))
 _ROUND_START_DELAY = 5.0

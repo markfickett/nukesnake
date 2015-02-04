@@ -31,9 +31,10 @@ message Block {
     STAY_STILL = 10;
     FAST = 11;
     TELEPORT = 12;
+    INVINCIBLE = 13;
 
     // special weapons
-    NUKE = 13;
+    NUKE = 14;
   }
 
   required Type type = 1;
