@@ -8,6 +8,7 @@ _B = game_pb2.Block
 # Characters used as player icons, for the snakes' heads. Assigned in the order
 # the players join the game. For more characters, see:
 # alanflavell.org.uk/unicode/unidata25.html and unicode-table.com
+# Default characters selected based on rendering in Menlo Regular.
 PLAYER_ICONS = [
     u'\N{UMBRELLA}',
     '$',
