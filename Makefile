@@ -1,4 +1,6 @@
 PRETTY_NAME = Nuke Snake
+RESOURCES = out/$(PRETTY_NAME).app/Contents/Resources/
+PROTO_DYLIB = libprotobuf.9.dylib
 
 make pb2:
 	protoc --python_out=. *.proto
@@ -8,13 +10,16 @@ out/google/protobuf/__init__.py:
 	cp /Library/Python/2.7/site-packages/protobuf-2.6.*.egg out/egg
 	cd out && unzip egg
 
-mac_app: pb2 out/google/protobuf/__init__.py
+mac_app: pb2 out/google/protobuf/__init__.py /usr/local/lib/$(PROTO_DYLIB)
 	rm -rf "out/$(PRETTY_NAME).app"
 	mkdir -p out
 	cp -r mac "out/$(PRETTY_NAME).app"
-	cp *.py "out/$(PRETTY_NAME).app/Contents/Resources/"
-	cp LICENSE.txt "out/$(PRETTY_NAME).app/Contents/Resources/"
-	cp -r out/google "out/$(PRETTY_NAME).app/Contents/Resources/"
+	cp LICENSE.txt "$(RESOURCES)"
+	cp *.py "$(RESOURCES)"
+	cp -r out/google "$(RESOURCES)"
+	cp /usr/local/lib/$(PROTO_DYLIB) "$(RESOURCES)"
+	install_name_tool -id "./$(PROTO_DYLIB)" "$(RESOURCES)$(PROTO_DYLIB)"
+	install_name_tool -change /usr/local/lib/$(PROTO_DYLIB) "./$(PROTO_DYLIB)" "$(RESOURCES)google/protobuf/pyext/_message.so"
 
 mac_dmg: mac_app
 	mkdir -p out/macdmg
