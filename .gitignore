@@ -3,3 +3,5 @@ game_pb2.py
 network_pb2.py
 *.pyc
 .DS_Store
+NukeSnake.app
+*.swp

@@ -10,10 +10,11 @@ syslog.syslog(
     'Starting NukeSnake from Python wrapper script %s in app.' % __file__)
 
 py_src_dir = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', '..'))
+    os.path.dirname(__file__), '..', '..', 'Contents', 'Resources'))
 
 for runner in ('client.py', 'network.py'):
-  subprocess.call([
-      'open',
-      '-a', 'Terminal',
-      os.path.join(py_src_dir, runner)])
+  runner_abspath = os.path.join(py_src_dir, runner)
+  syslog.syslog(
+      syslog.LOG_DEBUG,
+      'Opening Terminal for: %s' % runner_abspath)
+  subprocess.call(['open', '-a', 'Terminal', runner_abspath])
