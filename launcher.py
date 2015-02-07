@@ -7,7 +7,7 @@ import multiprocessing
 # For bundled app distribution, include the local directory in LD_LIBRARY_PATH.
 resources_dir = os.path.dirname(__file__)
 if '.app' in resources_dir:
-  os.chdir(resources_dir)
+  os.chdir(resources_dir)  # Allow a relative paty for the dylib, see Makefile.
   os.environ['LD_LIBRARY_PATH'] = resources_dir + ':' + os.environ.get(
       'LD_LIBRARY_PATH', '')
 
