@@ -195,6 +195,8 @@ class Server(object):
         used_dt = time.time() - t
         if used_dt < _UPDATE_INTERVAL:
           time.sleep(_UPDATE_INTERVAL - used_dt)
+    except KeyboardInterrupt:
+      pass
     finally:
       logging.info('Closing listening socket.')
       self._sock.Close()
