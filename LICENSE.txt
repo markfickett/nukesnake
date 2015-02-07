@@ -1,4 +1,4 @@
-Nuke Snake by Mark Fickett: github.com/markfickett/nukesnake
+Nuke Snake by Mark Fickett markfickett.com/nukesnake
 
 Licensed under Creative Commons Attribution NonCommercial ShareAlike 4.0.
 http://creativecommons.org/licenses/by-nc-sa/4.0/

@@ -18,7 +18,7 @@ import network
 
 common.ConfigureLogging(filename='/tmp/nukesnake.log')
 
-print 'Welcome to Nuke Snake by Mark Fickett. github.com/markfickett/nukesnake'
+print 'Welcome to Nuke Snake by Mark Fickett. markfickett.com/nukesnake'
 print (
     'Enter a name or IP address to join a game on another computer. '
     'Just hit enter to run a local server.')

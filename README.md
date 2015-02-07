@@ -7,8 +7,13 @@ Overview
 
 Inspired by [David Riggle's 1990 Mac game of the same name](http://macintoshgarden.org/games/nuke-snake), this is like Snake but you can shoot at your opponent, collect power-ups, and destroy the terrain or blow up mines. It is network multiplayer, with optional AI opponents.
 
+Packages
+--------
+[MacOS X App](http://markfickett.com/Nuke%20Snake.dmg) This will require allowing applications downloaded from anywhere. See [applicable instructions from U. Wisconsin-Madison](https://kb.wisc.edu/helpdesk/page.php?id=25443#gatekeeper).
+
 Quick Start
 -----------
+To start from the command line (most portable and most configurable), install [Google Protocol Buffer](https://github.com/google/protobuf) libraries, then start a server and one or more clients.
 
     # Install Google protobuf libraries. Prompts for sudo.
     ./setup.sh
@@ -22,4 +27,4 @@ Quick Start
 License
 -------
 
-[Creative Commons Attribution NonCommercial ShareAlike 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) Attribute to Mark Fickett and link to markfickett.com or github.com/markfickett/nukesnake .
+[Creative Commons Attribution NonCommercial ShareAlike 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) Attribute to Mark Fickett and link to markfickett.com/nukesnake .
