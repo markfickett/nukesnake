@@ -237,6 +237,44 @@ def _PrintBlockSummary():
            description))
 
 
+def RunClient(host, ai_names, server=None):
+  game_server = server or network.Client(host, network.PORT)
+
+  locale.setlocale(locale.LC_ALL, '')
+
+  _PrintBlockSummary()
+
+  client = Client(game_server)
+  names = []
+  while len(names) < _MAX_LOCAL_PLAYERS:
+    i = len(names)
+    print (
+        'Player %d action key is %r, move keys are '
+        % (i + 1, chr(client_config.ACTION_KEYS[i]))),
+    move_keys = client_config.MOVE_KEYS[i].items()
+    move_keys.sort(
+        key=lambda key_and_coord: (key_and_coord[1][1], key_and_coord[1][0]))
+    for c, _ in move_keys:
+      print chr(c),
+    print ''
+    name = raw_input(
+        'Name for player %d? [Just hit enter if you have everyone.] '
+        % (i + 1)).strip()
+    if not name:
+      break
+    names.append(name)
+    client.Register(name)
+  for ai_name in ai_names:
+    client.Register(ai_name, ai=True)
+
+  try:
+    curses.wrapper(Client.CursesWrappedLoop, client)
+  except KeyboardInterrupt:
+    print 'Quitting.'
+  finally:
+    client.UnregisterAll()
+
+
 if __name__ == '__main__':
   log_filename = '/tmp/nukesnake_client_log.txt'
   print 'log file %s' % log_filename
@@ -265,38 +303,6 @@ if __name__ == '__main__':
     game_server.daemon = True
     game_server.start()
   else:
-    game_server = network.Client(args.host, network.PORT)
+    game_server=None
 
-  locale.setlocale(locale.LC_ALL, '')
-
-  _PrintBlockSummary()
-
-  client = Client(game_server)
-  names = []
-  while len(names) < _MAX_LOCAL_PLAYERS:
-    i = len(names)
-    print (
-        'Player %d action key is %r, move keys are '
-        % (i + 1, chr(client_config.ACTION_KEYS[i]))),
-    move_keys = client_config.MOVE_KEYS[i].items()
-    move_keys.sort(
-        key=lambda key_and_coord: (key_and_coord[1][1], key_and_coord[1][0]))
-    for c, _ in move_keys:
-      print chr(c),
-    print ''
-    name = raw_input(
-        'Name for player %d? [Just hit enter if you have everyone.] '
-        % (i + 1)).strip()
-    if not name:
-      break
-    names.append(name)
-    client.Register(name)
-  for ai_name in args.ai:
-    client.Register(ai_name, ai=True)
-
-  try:
-    curses.wrapper(Client.CursesWrappedLoop, client)
-  except KeyboardInterrupt:
-    print 'Quitting.'
-  finally:
-    client.UnregisterAll()
+  RunClient(args.host, args.ai, server=game_server)

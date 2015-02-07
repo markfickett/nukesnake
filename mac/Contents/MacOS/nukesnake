@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""App launcher to start server and client for Nuke Snake."""
+"""App launcher to open Nuke Snake in a new Terminal window."""
 
 import os
 import subprocess
@@ -12,9 +12,8 @@ syslog.syslog(
 py_src_dir = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', '..', 'Contents', 'Resources'))
 
-for runner in ('client.py', 'network.py'):
-  runner_abspath = os.path.join(py_src_dir, runner)
-  syslog.syslog(
-      syslog.LOG_DEBUG,
-      'Opening Terminal for: %s' % runner_abspath)
-  subprocess.call(['open', '-a', 'Terminal', runner_abspath])
+launcher_abspath = os.path.join(py_src_dir, 'launcher.py')
+syslog.syslog(
+    syslog.LOG_DEBUG,
+    'Opening Terminal for: %s' % launcher_abspath)
+subprocess.call(['open', '-a', 'Terminal', launcher_abspath])
