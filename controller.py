@@ -227,7 +227,7 @@ class Controller(object):
           self._size.x,
           self._size.y,
           0,
-          20,
+          18,
           blur_size=1,
           ripple_amt=(ripple_x, ripple_y))
       for i in xrange(self._size.x):
