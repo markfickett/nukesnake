@@ -72,7 +72,7 @@ class Controller(object):
     # to get to faster speeds.
     rate = 10.0
     self._update_interval = slowest / (self._round_num / rate + 1.0) + fastest
-    self._power_up_duration = int(3 / self._update_interval)
+    self._power_up_duration = int(6 / self._update_interval)
     self._pause_duration_ticks = int(2 / self._update_interval)
     logging.debug(
       'Update interval %.2fs power-up %d ticks pause %d ticks.',
