@@ -67,7 +67,7 @@ class Controller(object):
 
   def _SetSpeeds(self):
     slowest = 0.2  # one tick every .2s
-    fastest = 0.01
+    fastest = 0.005
     # This is inverse acceleration: larger numbers mean it takes more rounds
     # to get to faster speeds.
     rate = 10.0
