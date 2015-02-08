@@ -27,7 +27,7 @@ assert _MAX_LOCAL_PLAYERS == len(client_config.ACTION_KEYS)
 class Client(object):
   def __init__(self, game_server):
     self._game_server = game_server
-    self._local_player_ids_ordered = []
+    self._local_player_ids_ordered = []  # includes AIs
     self._ai_players_by_id = {}
     self._player_info_by_id = {}
     self._player_secret_by_id = {}
@@ -66,8 +66,9 @@ class Client(object):
 
       key_code = window.getch()
       local_player_index = 0
-      for player_id, info in self._player_info_by_id.iteritems():
+      for player_id in self._local_player_ids_ordered:
         if player_id not in self._ai_players_by_id:
+          info = self._player_info_by_id[player_id]
           secret = self._player_secret_by_id[player_id]
           self._DoPlayerCommand(local_player_index, secret, info, key_code)
           local_player_index += 1
@@ -110,9 +111,8 @@ class Client(object):
     if not states:
       return False
     self._game_state = states[-1]
-    for info in self._game_state.player_info:
-      if info.player_id in self._player_info_by_id:
-        self._player_info_by_id[info.player_id] = info
+    self._player_info_by_id = dict(
+        (info.player_id, info) for info in self._game_state.player_info)
     return True
 
   def _CheckWindowSize(self):
@@ -206,9 +206,9 @@ class Client(object):
     if block.type == game_pb2.Block.PLAYER_HEAD:
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
-      if (self._game_state.stage != game_pb2.Stage.ROUND
-          and block.player_id in self._local_player_ids_ordered):
-        if block.player_id not in self._ai_players_by_id:
+      if self._game_state.stage != game_pb2.Stage.ROUND:
+        if (block.player_id in self._local_player_ids_ordered
+            and block.player_id not in self._ai_players_by_id):
           s_attr += curses.A_BLINK
         if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
           name = self._player_info_by_id[block.player_id].name
