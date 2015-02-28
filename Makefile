@@ -22,7 +22,8 @@ mac_app: pb2 out/google/protobuf/__init__.py /usr/local/lib/$(PROTO_DYLIB)
 	install_name_tool -change /usr/local/lib/$(PROTO_DYLIB) "./$(PROTO_DYLIB)" "$(RESOURCES)google/protobuf/pyext/_message.so"
 
 mac_dmg: mac_app
-	mkdir -p out/macdmg
+	rm -rf out/macdmg "out/$(PRETTY_NAME).dmg"
+	mkdir out/macdmg
 	mv "out/$(PRETTY_NAME).app" out/macdmg
 	cp LICENSE.txt out/macdmg
 	hdiutil create "out/$(PRETTY_NAME).dmg" -volname "$(PRETTY_NAME)" -srcfolder out/macdmg
