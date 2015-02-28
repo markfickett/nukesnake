@@ -28,6 +28,12 @@ class _Base(object):
     return len(filter(
         lambda info: info.alive, self._player_infos_by_id.itervalues()))
 
+  def IsGameOver(self):
+    return False
+
+  def UseRespawn(self):
+    return False
+
   def TerrainChanged(self, blocks):
     pass
 
@@ -64,13 +70,22 @@ class Battle(_Base):
 class ClearMines(_Base):
   """Cooperative: Clear all the mines and nukes to proceed to the next round."""
   _TYPES_TO_CLEAR = (_B.MINE, _B.NUKE)
+  _LIVES_PER_PLAYER = 3
   def __init__(self):
     _Base.__init__(self)
     self._mine_coords = set()
+    self._lives = 0
 
   def CanStartRound(self):
     """Requires at least one player."""
     return len(self._player_infos_by_id) > 0
+
+  def UseRespawn(self):
+    if self._lives > 0:
+      self._lives -= 1
+      return True
+    else:
+      return False
 
   def TerrainChanged(self, blocks):
     """Records the new mines. Penalizes everyone for mines not cleared."""
@@ -84,7 +99,18 @@ class ClearMines(_Base):
 
   def IsRoundEnd(self):
     """Returns True when all explosives are cleared or everyone is dead."""
-    return len(self._mine_coords) <= 0 or self._num_alive <= 0
+    return len(self._mine_coords) <= 0
+
+  def AddPlayer(self, *args):
+    _Base.AddPlayer(self, *args)
+    self._lives += self._LIVES_PER_PLAYER
+
+  def RemovePlayer(self, *args):
+    _Base.RemovePlayer(self, *args)
+    self._lives -= self._LIVES_PER_PLAYER
+
+  def IsGameOver(self):
+    return self._num_alive <= 0
 
   def ItemDestroyed(self, by_player_id, item):
     """Awards points for clearing mines, penalizes for killing players."""

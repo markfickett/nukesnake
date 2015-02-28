@@ -430,8 +430,14 @@ class Controller(object):
             info.power_up.extend(remaining)
 
     self._ProcessCollisions()
+    for secret, info in self._player_infos_by_secret.iteritems():
+      if not info.alive and self._scoring.UseRespawn():
+        self._AddPlayerHeadResetPos(secret, info)
+        info.alive = True
 
-    if self._scoring.IsRoundEnd():
+    if self._scoring.IsGameOver():
+      self._SetStage(game_pb2.Stage.GAME_OVER)
+    elif self._scoring.IsRoundEnd():
       self._SetStage(game_pb2.Stage.ROUND_END)
 
     self._dirty = True
