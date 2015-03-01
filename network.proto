@@ -28,12 +28,13 @@ message Request {
 // when the client registers and subsequently for new rounds, and then changes
 // are sent for each server tick.
 message Response {
-  repeated Block block = 1;
-  repeated PlayerInfo player_info = 2;
-  optional Stage.Id stage = 3;
-  optional uint32 round_num = 4;
-  optional Coordinate size = 5;
-  optional uint32 player_id = 6;  // first response only
-  optional Chunk chunk_info = 7;
-  optional uint32 lives = 8;  // shared, for coop mode
+  optional uint64 tick = 1;
+  repeated Block block = 2;
+  repeated PlayerInfo player_info = 3;
+  optional Stage.Id stage = 4;
+  optional uint32 round_num = 5;
+  optional Coordinate size = 6;
+  optional uint32 player_id = 7;  // first response only
+  optional Chunk chunk_info = 8;
+  optional uint32 lives = 9;  // shared, for coop mode
 }

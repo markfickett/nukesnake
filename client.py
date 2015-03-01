@@ -151,8 +151,6 @@ class Client(object):
     message = ''
     if self._game_state.stage == game_pb2.Stage.COLLECT_PLAYERS:
       message = 'Press action to start round %d.' % self._game_state.round_num
-    elif self._game_state.stage == game_pb2.Stage.ROUND_START:
-      message = 'Ready...'
     else:
       for local_info in self._player_info_by_id.values():
         if not local_info.alive:
@@ -213,7 +211,8 @@ class Client(object):
     if block.type == game_pb2.Block.PLAYER_HEAD:
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
-      if self._game_state.stage != game_pb2.Stage.ROUND:
+      info = self._player_info_by_id[block.player_id]
+      if info.start_tick > self._game_state.tick:
         if (block.player_id in self._local_player_ids_ordered
             and block.player_id not in self._ai_players_by_id):
           s_attr += curses.A_BLINK

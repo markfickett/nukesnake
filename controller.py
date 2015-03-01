@@ -88,6 +88,7 @@ class Controller(object):
     self._pause_ticks = 0
     self._dirty = True
     self._start_requested = False
+    logging.debug('%s', game_pb2.Stage.Id.Name(self._stage))
 
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       # When preparing for a new round to start, reinitialize state and
@@ -130,6 +131,7 @@ class Controller(object):
           environment_blocks += filter(bool, row)
         environment_blocks += self._rockets
       self._client_facing_state = network_pb2.Response(
+          tick=self._tick,
           size=self._size,
           player_info=self._player_infos_by_secret.values(),
           block=environment_blocks + self._player_heads_by_secret.values(),
@@ -292,6 +294,8 @@ class Controller(object):
       player_head = self._player_heads_by_secret.get(secret)
       if player_head:
         info = self._player_infos_by_secret[secret]
+        if info.start_tick > self._tick:
+          return
         used_item = None
         if info.power_up and info.power_up[0].type == _B.TELEPORT:
           player_head.pos.MergeFrom(self._GetStartingPos())
@@ -369,18 +373,21 @@ class Controller(object):
 
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       if self._start_requested:
-        self._SetStage(game_pb2.Stage.ROUND_START)
-    elif self._stage == game_pb2.Stage.ROUND_START:
-      if self._pause_ticks > self._pause_duration_ticks:
         self._SetStage(game_pb2.Stage.ROUND)
     elif self._stage == game_pb2.Stage.ROUND:
       self._Tick()
     elif self._stage in (game_pb2.Stage.ROUND_END, game_pb2.Stage.GAME_OVER):
       if self._pause_ticks > self._pause_duration_ticks:
         self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
+    if self._stage != game_pb2.Stage.ROUND:
+      self._SetPlayerStartTicks()
     self._tick += 1
     self._pause_ticks += 1
     return True
+
+  def _SetPlayerStartTicks(self):
+    for info in self._player_infos_by_secret.itervalues():
+      info.start_tick = self._tick + self._pause_duration_ticks
 
   def _Tick(self):
     tail_duration = _HEAD_MOVE_INTERVAL * (
@@ -390,7 +397,8 @@ class Controller(object):
       power_up = info.power_up[0].type if info.power_up else None
       if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
-          and power_up != _B.STAY_STILL):
+          and power_up != _B.STAY_STILL
+          and self._tick >= info.start_tick):
         if head.move:
           # Add new tail segments, move heads.
           tail = _B(
@@ -437,6 +445,7 @@ class Controller(object):
       if not info.alive and self._scoring.UseRespawn():
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = True
+        info.start_tick = self._tick + self._pause_duration_ticks
 
     if self._scoring.IsGameOver():
       self._SetStage(game_pb2.Stage.GAME_OVER)
@@ -512,7 +521,8 @@ class Controller(object):
     if secret:
       if not force:
         info = self._player_infos_by_secret[secret]
-        if info.power_up and info.power_up[0].type == _B.INVINCIBLE:
+        if (info.power_up and info.power_up[0].type == _B.INVINCIBLE or
+            info.start_tick > self._tick):
           return
       del self._player_heads_by_secret[secret]
     # Tail blocks will no longer update, but are already in statics.
