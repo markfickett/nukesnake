@@ -154,12 +154,18 @@ class Client(object):
     elif self._game_state.stage == game_pb2.Stage.ROUND_START:
       message = 'Ready...'
     else:
+      if self._game_state.HasField('lives'):
+        message = 'Lives: %d %s' % (self._game_state.lives, message)
       for local_info in self._player_info_by_id.values():
         if not local_info.alive:
           message += (
               '%s Dies (score %d) ' %
               (local_info.name, local_info.score))
-    if self._game_state.stage == game_pb2.Stage.ROUND_END:
+    if self._game_state.stage == game_pb2.Stage.GAME_OVER:
+      message = 'Game Over!'
+      for info in self._game_state.player_info:
+        message += ' %s: %d' % (info.name, info.score)
+    elif self._game_state.stage == game_pb2.Stage.ROUND_END:
       living_info = None
       for info in self._game_state.player_info:
         if info.alive:

@@ -35,4 +35,5 @@ message Response {
   optional Coordinate size = 5;
   optional uint32 player_id = 6;  // first response only
   optional Chunk chunk_info = 7;
+  optional uint32 lives = 8;  // shared, for coop mode
 }

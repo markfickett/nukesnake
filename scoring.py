@@ -15,6 +15,7 @@ _B = game_pb2.Block
 class _Base(object):
   def __init__(self):
     self._player_infos_by_id = {}
+    self.lives = None
 
   def AddPlayer(self, info):
     info.score = 0
@@ -74,15 +75,15 @@ class ClearMines(_Base):
   def __init__(self):
     _Base.__init__(self)
     self._mine_coords = set()
-    self._lives = 0
+    self.lives = 0
 
   def CanStartRound(self):
     """Requires at least one player."""
     return len(self._player_infos_by_id) > 0
 
   def UseRespawn(self):
-    if self._lives > 0:
-      self._lives -= 1
+    if self.lives > 0:
+      self.lives -= 1
       return True
     else:
       return False
@@ -103,14 +104,19 @@ class ClearMines(_Base):
 
   def AddPlayer(self, *args):
     _Base.AddPlayer(self, *args)
-    self._lives += self._LIVES_PER_PLAYER
+    self.lives += self._LIVES_PER_PLAYER
 
   def RemovePlayer(self, *args):
     _Base.RemovePlayer(self, *args)
-    self._lives -= self._LIVES_PER_PLAYER
+    self.lives -= self._LIVES_PER_PLAYER
 
   def IsGameOver(self):
     return self._num_alive <= 0
+
+  def Reset(self):
+    _Base.Reset(self)
+    self._mine_coords = set()
+    self.lives = self._LIVES_PER_PLAYER * len(self._player_infos_by_id)
 
   def ItemDestroyed(self, by_player_id, item):
     """Awards points for clearing mines, penalizes for killing players."""

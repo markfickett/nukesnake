@@ -83,6 +83,7 @@ class Controller(object):
   def _SetStage(self, stage):
     if self._stage == stage:
       return
+    prev_stage = self._stage
     self._stage = stage
     self._pause_ticks = 0
     self._dirty = True
@@ -95,9 +96,9 @@ class Controller(object):
       # a subset of static blocks; to track expiration
       self._player_tails_by_id = collections.defaultdict(lambda: list())
 
-      # If (almost) everyone left, reset more things.
-      reset_stats = False
-      if not self._scoring.CanStartRound():
+      # If (almost) everyone left, or the game was over, reset more things.
+      reset_stats = prev_stage == game_pb2.Stage.GAME_OVER
+      if reset_stats or not self._scoring.CanStartRound():
         self._round_num = self._starting_round
         self._scoring.Reset()
         reset_stats = True
@@ -134,6 +135,8 @@ class Controller(object):
           block=environment_blocks + self._player_heads_by_secret.values(),
           stage=self._stage,
           round_num=self._round_num)
+      if self._scoring.lives is not None:
+        self._client_facing_state.lives = max(0, self._scoring.lives)
       self._dirty = False
       self._state_hash += 1
 
@@ -372,7 +375,7 @@ class Controller(object):
         self._SetStage(game_pb2.Stage.ROUND)
     elif self._stage == game_pb2.Stage.ROUND:
       self._Tick()
-    elif self._stage == game_pb2.Stage.ROUND_END:
+    elif self._stage in (game_pb2.Stage.ROUND_END, game_pb2.Stage.GAME_OVER):
       if self._pause_ticks > self._pause_duration_ticks:
         self._SetStage(game_pb2.Stage.COLLECT_PLAYERS)
     self._tick += 1

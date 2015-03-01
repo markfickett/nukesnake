@@ -51,6 +51,7 @@ message Stage {
     ROUND_START = 2;
     ROUND = 3;
     ROUND_END = 4;
+    GAME_OVER = 5;
   }
 }
 
