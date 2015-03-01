@@ -154,8 +154,6 @@ class Client(object):
     elif self._game_state.stage == game_pb2.Stage.ROUND_START:
       message = 'Ready...'
     else:
-      if self._game_state.HasField('lives'):
-        message = 'Lives: %d %s' % (self._game_state.lives, message)
       for local_info in self._player_info_by_id.values():
         if not local_info.alive:
           message += (
@@ -175,7 +173,10 @@ class Client(object):
         message = (
             '%s wins! (score %d) %s' %
             (living_info.name, living_info.score, message))
-    self._window.addstr(h - 1, 1, message)
+    if self._game_state.HasField('lives'):
+      # hearts for lives
+      message = '%s %s' % (u'\u2665' * self._game_state.lives, message)
+    self._window.addstr(h - 1, 1, message.encode('utf-8'))
 
   def _RenderSummaryLine(self, local_player_cardinal, player_id, h, w):
     info = self._player_info_by_id[player_id]
