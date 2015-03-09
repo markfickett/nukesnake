@@ -309,7 +309,7 @@ class Controller(object):
       player_head = self._player_heads_by_secret.get(secret)
       if player_head:
         info = self._player_infos_by_secret[secret]
-        if info.start_tick > self._tick:
+        if info.first_active_tick > self._tick:
           return
         if info.alive != game_pb2.PlayerInfo.ALIVE:
           return
@@ -404,7 +404,7 @@ class Controller(object):
 
   def _SetPlayerStartTicks(self):
     for info in self._player_infos_by_secret.itervalues():
-      info.start_tick = self._tick + self._pause_duration_ticks
+      info.first_active_tick = self._tick + self._pause_duration_ticks
 
   def _Tick(self):
     tail_duration = _HEAD_MOVE_INTERVAL * (
@@ -415,7 +415,7 @@ class Controller(object):
       if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
           and power_up != _B.STAY_STILL
-          and self._tick >= info.start_tick):
+          and self._tick >= info.first_active_tick):
         if head.move:
           # Add new tail segments, move heads.
           if head.type == _B.PLAYER_HEAD:  # no tails for zombies
@@ -471,7 +471,7 @@ class Controller(object):
           self._AddPlayerHeadResetPos(
               secret, info, as_mine_at=old_positions[secret])
           info.alive = game_pb2.PlayerInfo.ZOMBIE
-        info.start_tick = self._tick + self._pause_duration_ticks
+        info.first_active_tick = self._tick + self._pause_duration_ticks
 
     if self._scoring.IsGameOver():
       self._SetStage(game_pb2.Stage.GAME_OVER)
@@ -487,8 +487,10 @@ class Controller(object):
   def _ProcessCollisions(self):
     destroyed = []
     moving_blocks_grid = common.MakeGrid(self._size)
-    for b in itertools.chain(
-        self._player_heads_by_secret.values(), self._rockets):
+    active_heads = [
+        head for secret, head in self._player_heads_by_secret.iteritems()
+        if self._tick >= self._player_infos_by_secret[secret].first_active_tick]
+    for b in itertools.chain(active_heads, self._rockets):
       hit = None
       for target_grid in (moving_blocks_grid, self._static_blocks_grid):
         hit = target_grid[b.pos.x][b.pos.y]
@@ -553,7 +555,7 @@ class Controller(object):
       if not force:
         info = self._player_infos_by_secret[secret]
         if (info.power_up and info.power_up[0].type == _B.INVINCIBLE or
-            info.start_tick > self._tick):
+            info.first_active_tick > self._tick):
           return
       del self._player_heads_by_secret[secret]
     # Tail blocks will no longer update, but are already in statics.

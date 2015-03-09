@@ -212,7 +212,7 @@ class Client(object):
       s = client_config.PLAYER_ICONS[
           block.player_id % len(client_config.PLAYER_ICONS)]
       info = self._player_info_by_id[block.player_id]
-      if info.start_tick > self._game_state.tick:
+      if info.first_active_tick > self._game_state.tick:
         if (block.player_id in self._local_player_ids_ordered
             and block.player_id not in self._ai_players_by_id):
           s_attr += curses.A_BLINK
