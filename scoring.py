@@ -27,7 +27,8 @@ class _Base(object):
   @property
   def _num_alive(self):
     return len(filter(
-        lambda info: info.alive, self._player_infos_by_id.itervalues()))
+        lambda info: info.alive == game_pb2.PlayerInfo.ALIVE,
+        self._player_infos_by_id.itervalues()))
 
   def IsGameOver(self):
     return False
@@ -64,7 +65,7 @@ class Battle(_Base):
         self._player_infos_by_id[by_player_id].score += (
           -5 if by_player_id == item.player_id else 5)
       for info in self._player_infos_by_id.itervalues():
-        if info.alive:
+        if info.alive == game_pb2.PlayerInfo.ALIVE:
           info.score += 1
 
 
@@ -130,7 +131,7 @@ class ClearMines(_Base):
       logging.debug('%d mines left', len(self._mine_coords))
       if len(self._mine_coords) <= 0:
         for info in self._player_infos_by_id.itervalues():
-          if info.alive:
+          if info.alive == game_pb2.PlayerInfo.ALIVE:
             info.score += 20
     elif item.type is _B.PLAYER_HEAD:
       if by_player_id is not None:

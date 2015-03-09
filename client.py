@@ -153,7 +153,7 @@ class Client(object):
       message = 'Press action to start round %d.' % self._game_state.round_num
     else:
       for local_info in self._player_info_by_id.values():
-        if not local_info.alive:
+        if local_info.alive == game_pb2.PlayerInfo.DEAD:
           message += (
               '%s Dies (score %d) ' %
               (local_info.name, local_info.score))
@@ -164,7 +164,7 @@ class Client(object):
     elif self._game_state.stage == game_pb2.Stage.ROUND_END:
       living_info = None
       for info in self._game_state.player_info:
-        if info.alive:
+        if info.alive == game_pb2.PlayerInfo.ALIVE:
           living_info = info
           break
       if living_info:

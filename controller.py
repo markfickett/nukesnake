@@ -110,7 +110,7 @@ class Controller(object):
       self._BuildStaticBlocks()
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
-        info.alive = True
+        info.alive = game_pb2.PlayerInfo.ALIVE
         if reset_stats:
           del info.inventory[:]
           del info.power_up[:]
@@ -157,10 +157,14 @@ class Controller(object):
         info.name for info in self._player_infos_by_secret.values()]:
       raise RuntimeError('Player name %s is already taken.' % name)
 
+    starting_alive = (
+        game_pb2.PlayerInfo.ALIVE
+        if self._stage == game_pb2.Stage.COLLECT_PLAYERS
+        else game_pb2.PlayerInfo.ZOMBIE_DEAD)
     info = game_pb2.PlayerInfo(
         player_id=self._next_player_id,
         name=name,
-        alive=self._stage == game_pb2.Stage.COLLECT_PLAYERS)
+        alive=starting_alive)
     self._scoring.AddPlayer(info)
     self._player_infos_by_secret[secret] = info
     self._next_player_id += 1
@@ -190,11 +194,11 @@ class Controller(object):
       self._static_blocks_grid[starting_pos.x][starting_pos.y] = None
     return starting_pos
 
-  def _AddPlayerHeadResetPos(self, player_secret, player_info):
+  def _AddPlayerHeadResetPos(self, player_secret, player_info, as_mine_at=None):
     head = self._player_heads_by_secret.get(player_secret)
     starting_pos = self._GetStartingPos()
 
-    if head:
+    if head and head.type != _B.MINE and not as_mine_at:
       head.pos.MergeFrom(starting_pos)
     else:
       head = _B(
@@ -202,6 +206,9 @@ class Controller(object):
           pos=starting_pos,
           direction=game_pb2.Coordinate(x=1, y=0),
           player_id=player_info.player_id)
+      if as_mine_at:
+        head.type = _B.MINE
+        head.pos.MergeFrom(as_mine_at)
       if not config.AUTO_MOVE:
         head.move = False
       self._player_heads_by_secret[player_secret] = head
@@ -285,6 +292,14 @@ class Controller(object):
     if player_head:
       player_head.direction.MergeFrom(direction)
       player_head.ClearField('move')
+    else:
+      info = self._player_infos_by_secret.get(secret)
+      if info:
+        logging.warning(
+            'Move from player %d (%s) with no head.',
+            info.player_id, info.name)
+      else:
+        logging.error('Move from non-registered secret %r.', secret)
 
   def Action(self, secret):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
@@ -295,6 +310,8 @@ class Controller(object):
       if player_head:
         info = self._player_infos_by_secret[secret]
         if info.start_tick > self._tick:
+          return
+        if info.alive != game_pb2.PlayerInfo.ALIVE:
           return
         used_item = None
         if info.power_up and info.power_up[0].type == _B.TELEPORT:
@@ -401,13 +418,14 @@ class Controller(object):
           and self._tick >= info.start_tick):
         if head.move:
           # Add new tail segments, move heads.
-          tail = _B(
-              type=_B.PLAYER_TAIL,
-              pos=head.pos,
-              last_viable_tick=self._tick + tail_duration,
-              player_id=head.player_id)
-          self._player_tails_by_id[head.player_id].append(tail)
-          self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
+          if head.type == _B.PLAYER_HEAD:  # no tails for zombies
+            tail = _B(
+                type=_B.PLAYER_TAIL,
+                pos=head.pos,
+                last_viable_tick=self._tick + tail_duration,
+                player_id=head.player_id)
+            self._player_tails_by_id[head.player_id].append(tail)
+            self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
 
           self._AdvanceBlock(head)
           if not config.AUTO_MOVE:
@@ -440,11 +458,19 @@ class Controller(object):
             remaining[0].last_viable_tick = self._tick + self._power_up_duration
             info.power_up.extend(remaining)
 
+    old_positions = {
+        secret: head.pos
+        for secret, head in self._player_heads_by_secret.iteritems()}
     self._ProcessCollisions()
     for secret, info in self._player_infos_by_secret.iteritems():
-      if not info.alive and self._scoring.UseRespawn():
-        self._AddPlayerHeadResetPos(secret, info)
-        info.alive = True
+      if info.alive == game_pb2.PlayerInfo.DEAD:
+        if self._scoring.UseRespawn():
+          self._AddPlayerHeadResetPos(secret, info)
+          info.alive = game_pb2.PlayerInfo.ALIVE
+        else:
+          self._AddPlayerHeadResetPos(
+              secret, info, as_mine_at=old_positions[secret])
+          info.alive = game_pb2.PlayerInfo.ZOMBIE
         info.start_tick = self._tick + self._pause_duration_ticks
 
     if self._scoring.IsGameOver():
@@ -473,8 +499,10 @@ class Controller(object):
       if not hit:
         moving_blocks_grid[b.pos.x][b.pos.y] = b
     for b, hit_by in destroyed:
-      if b.type == _B.PLAYER_HEAD:
+      if b.type in (_B.PLAYER_HEAD, _B.MINE) and b.HasField('player_id'):
         self._KillPlayer(b.player_id)
+        if b.type == _B.MINE:
+          self._ExplodeAsMine(b)
       elif b.type == _B.ROCKET:
         # Mark for immediate expiration rather than finding/deleting now.
         b.last_viable_tick = self._tick - 1
@@ -487,14 +515,17 @@ class Controller(object):
               type=_B.BROKEN_ROCK, pos=b.pos)
         elif b.type == _B.MINE or (
             b.type == _B.NUKE and hit_by.type == _B.ROCKET):
-          for i in range(-1, 2):
-            for j in range(-1, 2):
-              if i == 0 and j == 0:
-                continue
-              self._AddRocket(
-                  b.pos, game_pb2.Coordinate(x=i, y=j), b.player_id)
+          self._ExplodeAsMine(b)
       self._scoring.ItemDestroyed(
           hit_by.player_id if hit_by.HasField('player_id') else None, b)
+
+  def _ExplodeAsMine(self, b):
+    for i in range(-1, 2):
+      for j in range(-1, 2):
+        if i == 0 and j == 0:
+          continue
+        self._AddRocket(
+            b.pos, game_pb2.Coordinate(x=i, y=j), b.player_id)
 
   def _CheckIsPlayerHeadPickUpItem(self, head, block):
     if not head.type == _B.PLAYER_HEAD:
@@ -531,7 +562,9 @@ class Controller(object):
       if secret == other_secret:
         # If this is after Unregister, there may be no PlayerInfo for the
         # player being killed.
-        info.alive = False
+        info.alive = (
+            game_pb2.PlayerInfo.DEAD if info.alive == game_pb2.PlayerInfo.ALIVE
+            else game_pb2.PlayerInfo.ZOMBIE_DEAD)
 
 
 def _RandomPosWithin(world_size):
