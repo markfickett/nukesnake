@@ -292,14 +292,8 @@ class Controller(object):
     if player_head:
       player_head.direction.MergeFrom(direction)
       player_head.ClearField('move')
-    else:
-      info = self._player_infos_by_secret.get(secret)
-      if info:
-        logging.warning(
-            'Move from player %d (%s) with no head.',
-            info.player_id, info.name)
-      else:
-        logging.error('Move from non-registered secret %r.', secret)
+    elif secret not in self._player_infos_by_secret:
+      logging.warning('Move from non-registered secret %r.', secret)
 
   def Action(self, secret):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
