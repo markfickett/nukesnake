@@ -78,12 +78,12 @@ MOVE_KEYS = [
     for movement_keys in (
         'qweasdzxc',
         'uiojklm,.',
-        'rtyfghvbn')]
+        'rtyfghv5n')]
 # List of the action keys (to start the game or shoot), in player order.
 ACTION_KEYS = (
     ord(' '),
     ord(';'),
-    ord('\\'),
+    ord('b'),
 )
 
 
