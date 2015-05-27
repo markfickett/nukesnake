@@ -495,9 +495,10 @@ class Controller(object):
       if not hit:
         moving_blocks_grid[b.pos.x][b.pos.y] = b
     for b, hit_by in destroyed:
+      escaped = False
       if b.type in (_B.PLAYER_HEAD, _B.MINE) and b.HasField('player_id'):
-        self._KillPlayer(b.player_id)
-        if b.type == _B.MINE:
+        escaped = not self._KillPlayer(b.player_id)
+        if not escaped and b.type == _B.MINE:
           self._ExplodeAsMine(b)
       elif b.type == _B.ROCKET:
         # Mark for immediate expiration rather than finding/deleting now.
@@ -512,8 +513,9 @@ class Controller(object):
         elif b.type == _B.MINE or (
             b.type == _B.NUKE and hit_by.type == _B.ROCKET):
           self._ExplodeAsMine(b)
-      self._scoring.ItemDestroyed(
-          hit_by.player_id if hit_by.HasField('player_id') else None, b)
+      if not escaped:
+        self._scoring.ItemDestroyed(
+            hit_by.player_id if hit_by.HasField('player_id') else None, b)
 
   def _ExplodeAsMine(self, b):
     for i in range(-1, 2):
@@ -541,6 +543,11 @@ class Controller(object):
     return True
 
   def _KillPlayer(self, player_id, force=False):
+    """Removes a player's head from the world and updates their alive state.
+
+    Returns:
+      True if the player died, False if something prevented killing them.
+    """
     secret = None
     for secret, head in self._player_heads_by_secret.iteritems():
       if head.player_id == player_id:
@@ -550,7 +557,7 @@ class Controller(object):
         info = self._player_infos_by_secret[secret]
         if (info.power_up and info.power_up[0].type == _B.INVINCIBLE or
             info.first_active_tick > self._tick):
-          return
+          return False
       del self._player_heads_by_secret[secret]
     # Tail blocks will no longer update, but are already in statics.
     self._player_tails_by_id.pop(player_id, None)
@@ -561,6 +568,7 @@ class Controller(object):
         info.alive = (
             game_pb2.PlayerInfo.DEAD if info.alive == game_pb2.PlayerInfo.ALIVE
             else game_pb2.PlayerInfo.ZOMBIE_DEAD)
+    return True
 
 
 def _RandomPosWithin(world_size):
