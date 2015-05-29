@@ -174,7 +174,7 @@ class Controller(object):
     tries = 0
     collides = True
     while collides and tries < _MAX_POS_TRIES:
-      starting_pos = _RandomPosWithin(self.world.size)
+      starting_pos = self._world.GetRandomPos()
       collides = False
       tries += 1
       for dx in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
@@ -257,7 +257,7 @@ class Controller(object):
 
     if not config.INFINITE_AMMO:
       for _ in xrange(self.world.size.x * self.world.size.y / _AMMO_RARITY):
-        pos = _RandomPosWithin(self.world.size)
+        pos = self._world.GetRandomPos()
         self._static_blocks_grid[pos.x][pos.y] = _B(
             type=_B.AMMO if random.random() > _NUKE_PROPORTION else _B.NUKE,
             pos=pos)
@@ -276,13 +276,13 @@ class Controller(object):
               self._static_blocks_grid[i][j] = _Block(_B.MINE, i, j)
       else:
         for _ in xrange(self.world.size.x * self.world.size.y / _MINE_RARITY):
-          pos = _RandomPosWithin(self.world.size)
+          pos = self._world.GetRandomPos()
           self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
 
     if self._round_num in (2, 4) or self._round_num >= 6:
       power_up = random.choice(_POWER_UPS + [_B.NUKE])
       for _ in xrange(self.world.size.x * self.world.size.y / _POWER_UP_RARITY):
-        pos = _RandomPosWithin(self.world.size)
+        pos = self._world.GetRandomPos()
         self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
 
   def Move(self, secret, direction):
@@ -571,12 +571,6 @@ class Controller(object):
             game_pb2.PlayerInfo.DEAD if info.alive == game_pb2.PlayerInfo.ALIVE
             else game_pb2.PlayerInfo.ZOMBIE_DEAD)
     return True
-
-
-def _RandomPosWithin(world_size):
-  return game_pb2.Coordinate(
-      x=random.randint(1, world_size.x - 2),
-      y=random.randint(1, world_size.y - 2))
 
 
 def AddControllerArgs(parser):
