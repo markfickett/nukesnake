@@ -20,8 +20,6 @@ _TAIL_GROWTH_TICKS = 100
 _ROCKET_DURATION_TICKS = 300
 _ROCKETS_PER_AMMO = 3
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
-_MAX_POS_TRIES = 50
-_POS_CLEARANCE = 2
 
 _NUKE_SIZE = 5
 
@@ -105,7 +103,7 @@ class Controller(object):
         power_up_type = random.choice(_POWER_UPS + [_B.NUKE])
       else:
         power_up_type = None
-      self._world.RebuildStaticBlocks(power_up_type)
+      self._world.RebuildTerrain(power_up_type)
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = game_pb2.PlayerInfo.ALIVE
@@ -113,20 +111,13 @@ class Controller(object):
           del info.inventory[:]
           del info.power_up[:]
 
-      def _GenerateAllBLocks():
-        for row in self._static_blocks_grid:
-          for block in row:
-            if block:
-              yield block
-
-      self._scoring.TerrainChanged(_GenerateAllBLocks())
+      self._scoring.TerrainChanged(self._world.IterAllTerrainBlocks())
 
   def GetGameState(self, last_hash):
     if self._dirty:
       environment_blocks = []
       if self._stage != game_pb2.Stage.COLLECT_PLAYERS:
-        for row in self._static_blocks_grid:
-          environment_blocks += filter(bool, row)
+        environment_blocks += list(self._world.IterAllTerrainBlocks())
         environment_blocks += self._rockets
       self._client_facing_state = network_pb2.Response(
           tick=self._tick,
@@ -170,31 +161,9 @@ class Controller(object):
       self._AddPlayerHeadResetPos(secret, info)
     return info.player_id
 
-  def _GetStartingPos(self):
-    tries = 0
-    collides = True
-    while collides and tries < _MAX_POS_TRIES:
-      starting_pos = self._world.GetRandomPos()
-      collides = False
-      tries += 1
-      for dx in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
-        for dy in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
-          hit = self._static_blocks_grid[
-              (starting_pos.x + dx) % self._world.size.x][
-              (starting_pos.y + dy) % self._world.size.y]
-          if hit is not None:
-            collides = True
-            break
-    if collides:
-      logging.info(
-          'Did not find a starting position with %d clearance after %d tries.',
-          _POS_CLEARANCE, _MAX_POS_TRIES)
-      self._static_blocks_grid[starting_pos.x][starting_pos.y] = None
-    return starting_pos
-
   def _AddPlayerHeadResetPos(self, player_secret, player_info, as_mine_at=None):
     head = self._player_heads_by_secret.get(player_secret)
-    starting_pos = self._GetStartingPos()
+    starting_pos = self._world.GetRandomPosClearOfTerrain()
 
     if head and head.type != _B.MINE and not as_mine_at:
       head.pos.MergeFrom(starting_pos)
@@ -246,7 +215,7 @@ class Controller(object):
           return
         used_item = None
         if info.power_up and info.power_up[0].type == _B.TELEPORT:
-          player_head.pos.MergeFrom(self._GetStartingPos())
+          player_head.pos.MergeFrom(self._world.GetRandomPosClearOfTerrain())
         elif info.inventory:
           used_item = info.inventory[0]
           new_inventory = info.inventory[1:]
@@ -277,7 +246,7 @@ class Controller(object):
           else:
             info.power_up.extend([pup_block])
           if used_item == _B.TELEPORT:
-            player_head.pos.MergeFrom(self._GetStartingPos())
+            player_head.pos.MergeFrom(self._world.GetRandomPosClearOfTerrain())
 
   def _AddRocket(self, origin, direction, player_id, initial_advance=False):
     if initial_advance:
@@ -356,7 +325,7 @@ class Controller(object):
                 last_viable_tick=self._tick + tail_duration,
                 player_id=head.player_id)
             self._player_tails_by_id[head.player_id].append(tail)
-            self._static_blocks_grid[tail.pos.x][tail.pos.y] = tail
+            self._world.SetTerrain(tails[0].pos.x, tails[0].pos.y, tail)
 
           self._AdvanceBlock(head)
           if not config.AUTO_MOVE:
@@ -368,7 +337,7 @@ class Controller(object):
     # Expire tails.
     for tails in self._player_tails_by_id.values():
       while tails and (tails[0].last_viable_tick < self._tick):
-        self._static_blocks_grid[tails[0].pos.x][tails[0].pos.y] = None
+        self._world.ClearTerrain(tails[0].pos)
         tails.pop(0)
 
     # Expire rockets.
@@ -441,12 +410,11 @@ class Controller(object):
         # Mark for immediate expiration rather than finding/deleting now.
         b.last_viable_tick = self._tick - 1
       elif self._static_blocks_grid[b.pos.x][b.pos.y] is b:
-        self._static_blocks_grid[b.pos.x][b.pos.y] = None
+        self._world.ClearTerrain(b.pos)
         if b.type == _B.PLAYER_TAIL:
           b.last_viable_tick = self._tick - 1
         elif b.type == _B.ROCK:
-          self._static_blocks_grid[b.pos.x][b.pos.y] = _B(
-              type=_B.BROKEN_ROCK, pos=b.pos)
+          self._world.SetTerrain(_B(type=_B.BROKEN_ROCK, pos=b.pos))
         elif b.type == _B.MINE or (
             b.type == _B.NUKE and hit_by.type == _B.ROCKET):
           self._ExplodeAsMine(b)
