@@ -10,8 +10,8 @@ import time
 from common import game_pb2, network_pb2
 import common
 import config
-import height_map
 import scoring
+import world
 
 
 
@@ -19,14 +19,10 @@ _STARTING_TAIL_LENGTH = max(0, config.STARTING_TAIL_LENGTH)
 _TAIL_GROWTH_TICKS = 100
 _ROCKET_DURATION_TICKS = 300
 _ROCKETS_PER_AMMO = 3
-_AMMO_RARITY = max(1, config.AMMO_RARITY)
-_POWER_UP_RARITY = max(1, config.POWER_UP_RARITY)
-_MINE_RARITY = max(2, config.MINE_RARITY)
 _HEAD_MOVE_INTERVAL = 3  # This makes rockets faster than player snakes.
 _MAX_POS_TRIES = 50
 _POS_CLEARANCE = 2
 
-_NUKE_PROPORTION = 0.1
 _NUKE_SIZE = 5
 
 _B = game_pb2.Block
@@ -40,7 +36,7 @@ _POWER_UPS = [
 
 class Controller(object):
   def __init__(self, width, height, mode, starting_round=0):
-    self.world = world.World(width, height)
+    self._world = world.World(width, height)
 
     self._player_heads_by_secret = {}
     self._next_player_id = 0
@@ -105,7 +101,11 @@ class Controller(object):
         self._round_num += 1
       self._SetSpeeds()
 
-      self._BuildStaticBlocks()
+      if self._round_num in (2, 4) or self._round_num >= 6:
+        power_up_type = random.choice(_POWER_UPS + [_B.NUKE])
+      else:
+        power_up_type = None
+      self._world.RebuildStaticBlocks(power_up_type)
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = game_pb2.PlayerInfo.ALIVE
@@ -130,7 +130,7 @@ class Controller(object):
         environment_blocks += self._rockets
       self._client_facing_state = network_pb2.Response(
           tick=self._tick,
-          size=self.world.size,
+          size=self._world.size,
           player_info=self._player_infos_by_secret.values(),
           block=environment_blocks + self._player_heads_by_secret.values(),
           stage=self._stage,
@@ -180,8 +180,8 @@ class Controller(object):
       for dx in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
         for dy in xrange(-_POS_CLEARANCE, _POS_CLEARANCE + 1):
           hit = self._static_blocks_grid[
-              (starting_pos.x + dx) % self.world.size.x][
-              (starting_pos.y + dy) % self.world.size.y]
+              (starting_pos.x + dx) % self._world.size.x][
+              (starting_pos.y + dy) % self._world.size.y]
           if hit is not None:
             collides = True
             break
@@ -219,71 +219,6 @@ class Controller(object):
       self._scoring.RemovePlayer(head.player_id)
       self._KillPlayer(head.player_id, force=True)
       self._dirty = True
-
-  def _BuildStaticBlocks(self):
-    self._static_blocks_grid = common.MakeGrid(self.world.size)
-    def _Block(block_type, x, y):
-      return _B(
-          type=block_type,
-          pos=game_pb2.Coordinate(x=x, y=y))
-
-    if config.TERRAIN:
-      ripple_total = random.randint(-1, 1)
-      ripple_x = random.randint(-1, 2)
-      ripple_y = ripple_total - ripple_x
-      logging.debug(
-          'Generating terrain with ripple (%d, %d).', ripple_x, ripple_y)
-      hm = height_map.MakeHeightMap(
-          self.world.size.x,
-          self.world.size.y,
-          0,
-          18,
-          blur_size=1,
-          ripple_amt=(ripple_x, ripple_y))
-      for i in xrange(self.world.size.x):
-        for j in xrange(self.world.size.y):
-          if hm[i][j] >= 13:
-            self._static_blocks_grid[i][j] = _Block(_B.ROCK, i, j)
-          elif hm[i][j] >= 12:
-            self._static_blocks_grid[i][j] = _Block(_B.TREE, i, j)
-
-    if config.WALLS:
-      for x in range(0, self.world.size.x):
-        for y in (0, self.world.size.y - 1):
-          self._static_blocks_grid[x][y] = _Block(_B.WALL, x, y)
-      for y in range(0, self.world.size.y):
-        for x in (0, self.world.size.x - 1):
-          self._static_blocks_grid[x][y] = _Block(_B.WALL, x, y)
-
-    if not config.INFINITE_AMMO:
-      for _ in xrange(self.world.size.x * self.world.size.y / _AMMO_RARITY):
-        pos = self._world.GetRandomPos()
-        self._static_blocks_grid[pos.x][pos.y] = _B(
-            type=_B.AMMO if random.random() > _NUKE_PROPORTION else _B.NUKE,
-            pos=pos)
-
-    if config.MINES:
-      if config.MINE_CLUSTERS:
-        hm = height_map.MakeHeightMap(
-            self.world.size.x,
-            self.world.size.y,
-            0,
-            random.randint(28, 30),
-            blur_size=4)
-        for i in xrange(self.world.size.x):
-          for j in xrange(self.world.size.y):
-            if hm[i][j] >= 17 and self._static_blocks_grid[i][j] is None:
-              self._static_blocks_grid[i][j] = _Block(_B.MINE, i, j)
-      else:
-        for _ in xrange(self.world.size.x * self.world.size.y / _MINE_RARITY):
-          pos = self._world.GetRandomPos()
-          self._static_blocks_grid[pos.x][pos.y] = _B(type=_B.MINE, pos=pos)
-
-    if self._round_num in (2, 4) or self._round_num >= 6:
-      power_up = random.choice(_POWER_UPS + [_B.NUKE])
-      for _ in xrange(self.world.size.x * self.world.size.y / _POWER_UP_RARITY):
-        pos = self._world.GetRandomPos()
-        self._static_blocks_grid[pos.x][pos.y] = _B(type=power_up, pos=pos)
 
   def Move(self, secret, direction):
     if abs(direction.x) > 1 or abs(direction.y) > 1:
@@ -347,8 +282,8 @@ class Controller(object):
   def _AddRocket(self, origin, direction, player_id, initial_advance=False):
     if initial_advance:
       rocket_pos = game_pb2.Coordinate(
-          x=(origin.x + direction.x) % self.world.size.x,
-          y=(origin.y + direction.y) % self.world.size.y)
+          x=(origin.x + direction.x) % self._world.size.x,
+          y=(origin.y + direction.y) % self._world.size.y)
     else:
       rocket_pos = origin
     self._rockets.append(_B(
@@ -365,8 +300,8 @@ class Controller(object):
         if (i, j) == (0, 0) or abs(i) + abs(j) > 1.7 * _NUKE_SIZE:
           continue
         pos = game_pb2.Coordinate(
-            x=(origin.x + i) % self.world.size.x,
-            y=(origin.y + j) % self.world.size.y)
+            x=(origin.x + i) % self._world.size.x,
+            y=(origin.y + j) % self._world.size.y)
         self._rockets.append(_B(
             type=_B.ROCKET,
             pos=pos,
@@ -477,12 +412,12 @@ class Controller(object):
     self._dirty = True
 
   def _AdvanceBlock(self, block):
-    block.pos.x = (block.pos.x + block.direction.x) % self.world.size.x
-    block.pos.y = (block.pos.y + block.direction.y) % self.world.size.y
+    block.pos.x = (block.pos.x + block.direction.x) % self._world.size.x
+    block.pos.y = (block.pos.y + block.direction.y) % self._world.size.y
 
   def _ProcessCollisions(self):
     destroyed = []
-    moving_blocks_grid = common.MakeGrid(self.world.size)
+    moving_blocks_grid = common.MakeGrid(self._world.size)
     active_heads = [
         head for secret, head in self._player_heads_by_secret.iteritems()
         if self._tick >= self._player_infos_by_secret[secret].first_active_tick]
