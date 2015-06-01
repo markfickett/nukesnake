@@ -175,8 +175,6 @@ class Controller(object):
       if as_mine_at:
         head.type = _B.MINE
         head.pos.MergeFrom(as_mine_at)
-      if not config.AUTO_MOVE:
-        head.move = False
       self._player_heads_by_secret[player_secret] = head
     self._dirty = True
 
@@ -196,7 +194,6 @@ class Controller(object):
     player_head = self._player_heads_by_secret.get(secret)
     if player_head:
       player_head.direction.MergeFrom(direction)
-      player_head.ClearField('move')
     elif secret not in self._player_infos_by_secret:
       logging.warning('Move from non-registered secret %r.', secret)
 
@@ -315,20 +312,17 @@ class Controller(object):
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
           and power_up != _B.STAY_STILL
           and self._tick >= info.first_active_tick):
-        if head.move:
-          # Add new tail segments, move heads.
-          if head.type == _B.PLAYER_HEAD:  # no tails for zombies
-            tail = _B(
-                type=_B.PLAYER_TAIL,
-                pos=head.pos,
-                last_viable_tick=self._tick + tail_duration,
-                player_id=head.player_id)
-            self._player_tails_by_id[head.player_id].append(tail)
-            self._world.SetTerrain(tails[0].pos.x, tails[0].pos.y, tail)
+        # Add new tail segments, move heads.
+        if head.type == _B.PLAYER_HEAD:  # no tails for zombies
+          tail = _B(
+              type=_B.PLAYER_TAIL,
+              pos=head.pos,
+              last_viable_tick=self._tick + tail_duration,
+              player_id=head.player_id)
+          self._player_tails_by_id[head.player_id].append(tail)
+          self._world.SetTerrain(tail)
 
           self._AdvanceBlock(head)
-          if not config.AUTO_MOVE:
-            head.move = False
 
     self._world.AdvanceBlocks()
 
