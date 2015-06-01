@@ -36,7 +36,6 @@ class Controller(object):
   def __init__(self, width, height, mode, starting_round=0):
     self._world = world.World(width, height)
 
-    self._player_heads_by_secret = {}
     self._next_player_id = 0
     self._player_infos_by_secret = {}
 
@@ -122,7 +121,7 @@ class Controller(object):
           tick=self._tick,
           size=self._world.size,
           player_info=self._player_infos_by_secret.values(),
-          block=environment_blocks + self._player_heads_by_secret.values(),
+          block=environment_blocks + list(self._world.IterAllPlayerHeads()),
           stage=self._stage,
           round_num=self._round_num)
       if self._scoring.lives is not None:
@@ -161,11 +160,11 @@ class Controller(object):
     return info.player_id
 
   def _AddPlayerHeadResetPos(self, player_secret, player_info, as_mine_at=None):
-    head = self._player_heads_by_secret.get(player_secret)
+    head = self._world.GetPlayerHead(player_secret)
     starting_pos = self._world.GetRandomPosClearOfTerrain()
 
     if head and head.type != _B.MINE and not as_mine_at:
-      head.pos.MergeFrom(starting_pos)
+      self._world.MovePlayerHead(player_secret, starting_pos)
     else:
       head = _B(
           type=_B.PLAYER_HEAD,
@@ -175,12 +174,12 @@ class Controller(object):
       if as_mine_at:
         head.type = _B.MINE
         head.pos.MergeFrom(as_mine_at)
-      self._player_heads_by_secret[player_secret] = head
+      self._world.SetPlayerHead(player_secret, head)
     self._dirty = True
 
   def Unregister(self, secret):
     self._player_infos_by_secret.pop(secret, None)
-    head = self._player_heads_by_secret.pop(secret, None)
+    head = self._world.RemovePlayerHead(secret)
     if head:
       self._scoring.RemovePlayer(head.player_id)
       self._KillPlayer(head.player_id, force=True)
@@ -191,7 +190,7 @@ class Controller(object):
       raise RuntimeError('Illegal move %s with value > 1.' % direction)
     if not (direction.x or direction.y):
       raise RuntimeError('Cannot stand still.')
-    player_head = self._player_heads_by_secret.get(secret)
+    player_head = self._world.GetPlayerHead(secret)
     if player_head:
       player_head.direction.MergeFrom(direction)
     elif secret not in self._player_infos_by_secret:
@@ -202,7 +201,7 @@ class Controller(object):
       if self._scoring.CanStartRound():
         self._start_requested = True
     elif self._stage == game_pb2.Stage.ROUND:
-      player_head = self._player_heads_by_secret.get(secret)
+      player_head = self._world.GetPlayerHead(secret)
       if player_head:
         info = self._player_infos_by_secret[secret]
         if info.first_active_tick > self._tick:
@@ -211,7 +210,8 @@ class Controller(object):
           return
         used_item = None
         if info.power_up and info.power_up[0].type == _B.TELEPORT:
-          player_head.pos.MergeFrom(self._world.GetRandomPosClearOfTerrain())
+          self._world.MovePlayerHead(
+              secret, self._world.GetRandomPosClearOfTerrain())
         elif info.inventory:
           used_item = info.inventory[0]
           new_inventory = info.inventory[1:]
@@ -242,7 +242,8 @@ class Controller(object):
           else:
             info.power_up.extend([pup_block])
           if used_item == _B.TELEPORT:
-            player_head.pos.MergeFrom(self._world.GetRandomPosClearOfTerrain())
+            self._world.MovePlayerHead(
+                secret, self._world.GetRandomPosClearOfTerrain())
 
   def _AddRocket(self, origin, direction, player_id, initial_advance=False):
     if initial_advance:
@@ -305,26 +306,27 @@ class Controller(object):
   def _Tick(self):
     tail_duration = _HEAD_MOVE_INTERVAL * (
         _STARTING_TAIL_LENGTH + self._tick / _TAIL_GROWTH_TICKS)
-    for secret, head in self._player_heads_by_secret.iteritems():
-      info = self._player_infos_by_secret[secret]
+    for secret, info in self._player_infos_by_secret.iteritems():
+      head = self._world.GetPlayerHead(secret)
       power_up = info.power_up[0].type if info.power_up else None
       if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
           and power_up != _B.STAY_STILL
           and self._tick >= info.first_active_tick):
         # Add new tail segments, move heads.
+        old_head_pos = game_pb2.Coordinate(x=head.pos.x, y=head.pos.y)
+        self._world.AdvanceBlock(head)
         if head.type == _B.PLAYER_HEAD:  # no tails for zombies
           tail = _B(
               type=_B.PLAYER_TAIL,
-              pos=head.pos,
+              pos=old_head_pos,
               last_viable_tick=self._tick + tail_duration,
               player_id=head.player_id)
           self._player_tails_by_id[head.player_id].append(tail)
           self._world.SetTerrain(tail)
 
-          self._AdvanceBlock(head)
-
-    self._world.AdvanceBlocks()
+    for rocket in self._world.IterAllRockets():
+      self._world.AdvanceBlock(rocket)
 
     # Expire tails.
     for tails in self._player_tails_by_id.values():
@@ -332,7 +334,7 @@ class Controller(object):
         self._world.ClearTerrain(tails[0].pos)
         tails.pop(0)
 
-    self._world.ExpireBlocks(self._tick)
+    self._world.ExpireRockets(self._tick)
 
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
@@ -345,8 +347,7 @@ class Controller(object):
             info.power_up.extend(remaining)
 
     old_positions = {
-        secret: head.pos
-        for secret, head in self._player_heads_by_secret.iteritems()}
+        head.player_id: head.pos for head in self._world.IterAllPlayerHeads()}
     self._ProcessCollisions()
     for secret, info in self._player_infos_by_secret.iteritems():
       if info.alive == game_pb2.PlayerInfo.DEAD:
@@ -355,7 +356,7 @@ class Controller(object):
           info.alive = game_pb2.PlayerInfo.ALIVE
         else:
           self._AddPlayerHeadResetPos(
-              secret, info, as_mine_at=old_positions[secret])
+              secret, info, as_mine_at=old_positions[info.player_id])
           info.alive = game_pb2.PlayerInfo.ZOMBIE
         info.first_active_tick = self._tick + self._pause_duration_ticks
 
@@ -374,8 +375,8 @@ class Controller(object):
     destroyed = []
     moving_blocks_grid = common.MakeGrid(self._world.size)
     active_heads = [
-        head for secret, head in self._player_heads_by_secret.iteritems()
-        if self._tick >= self._player_infos_by_secret[secret].first_active_tick]
+        head for head in self._world.IterAllPlayerHeads()
+        if self._tick >= head.first_active_tick]
     for b in itertools.chain(active_heads, self._world.IterAllRockets()):
       hit = None
       for target_grid in (moving_blocks_grid, self._world):
@@ -438,23 +439,26 @@ class Controller(object):
       return False
     return True
 
+  def _GetSecretForPlayerId(self, player_id):
+    for secret, info in self._player_infos_by_secret.iteritems():
+      if info.player_id == player_id:
+        return secret
+    return None
+
   def _KillPlayer(self, player_id, force=False):
     """Removes a player's head from the world and updates their alive state.
 
     Returns:
       True if the player died, False if something prevented killing them.
     """
-    secret = None
-    for secret, head in self._player_heads_by_secret.iteritems():
-      if head.player_id == player_id:
-        break
+    secret = self._GetSecretForPlayerId(player_id)
     if secret:
       if not force:
         info = self._player_infos_by_secret[secret]
         if (info.power_up and info.power_up[0].type == _B.INVINCIBLE or
             info.first_active_tick > self._tick):
           return False
-      del self._player_heads_by_secret[secret]
+      self._world.RemovePlayerHead(secret)
     # Tail blocks will no longer update, but are already in statics.
     self._player_tails_by_id.pop(player_id, None)
     for other_secret, info in self._player_infos_by_secret.iteritems():

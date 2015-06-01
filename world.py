@@ -31,6 +31,7 @@ class World(object):
     self._updates_grid = common.MakeGrid(self.size)
     self._static_blocks_grid = common.MakeGrid(self.size)
     self._rockets = []
+    self._player_heads_by_key = {}
 
   def _GetRandomPos(self):
     """Returns a random coordinate within the world (and not in the walls)."""
@@ -158,15 +159,13 @@ class World(object):
   def _UpdateAsEmpty(self, pos):
     self._updates_grid[pos.x][pos.y] = _Block(_B.EMPTY, pos.x, pos.y)
 
-  def AdvanceBlocks(self):
-    """Updates positions for moving blocks: rockets."""
-    for b in self._rockets:
-      self._UpdateAsEmpty(b.pos)
-      b.pos.x = (b.pos.x + b.direction.x) % self.size.x
-      b.pos.y = (b.pos.y + b.direction.y) % self.size.y
+  def AdvanceBlock(self, b):
+    self._UpdateAsEmpty(b.pos)
+    b.pos.x = (b.pos.x + b.direction.x) % self.size.x
+    b.pos.y = (b.pos.y + b.direction.y) % self.size.y
+    self._updates_grid[b.pos.x][b.pos.y] = b
 
-  def ExpireBlocks(self, tick):
-    """Removes blocks with limited lifetimes: rockets."""
+  def ExpireRockets(self, tick):
     rm_indices = []
     for i, rocket in enumerate(self._rockets):
       if rocket.last_viable_tick < tick:
@@ -174,3 +173,28 @@ class World(object):
         self._UpdateAsEmpty(rocket.pos)
     for i in reversed(rm_indices):
       del self._rockets[i]
+
+  def GetPlayerHead(self, key):
+    return self._player_heads_by_key.get(key)
+
+  def MovePlayerHead(self, key, pos):
+    head = self.RemovePlayerHead(key)
+    if not head:
+      raise KeyError('No player head for %s.' % key)
+    head.pos.MergeFrom(pos)
+    self._player_heads_by_key[key] = head
+    self._updates_grid[head.pos.x][head.pos.y] = head
+
+  def SetPlayerHead(self, key, head):
+    self.RemovePlayerHead(key)
+    self._player_heads_by_key[key] = head
+    self._updates_grid[head.pos.x][head.pos.y] = head
+
+  def RemovePlayerHead(self, key):
+    head = self._player_heads_by_key.pop(key, None)
+    if head:
+      self._UpdateAsEmpty(head.pos)
+    return head
+
+  def IterAllPlayerHeads(self):
+    return self._player_heads_by_key.itervalues()
