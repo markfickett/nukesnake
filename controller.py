@@ -375,8 +375,9 @@ class Controller(object):
     destroyed = []
     moving_blocks_grid = common.MakeGrid(self._world.size)
     active_heads = [
-        head for head in self._world.IterAllPlayerHeads()
-        if self._tick >= head.first_active_tick]
+        self._world.GetPlayerHead(secret)
+        for secret, info in self._player_infos_by_secret.iteritems()
+        if self._tick >= info.first_active_tick]
     for b in itertools.chain(active_heads, self._world.IterAllRockets()):
       hit = None
       for target_grid in (moving_blocks_grid, self._world):
