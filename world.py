@@ -30,6 +30,7 @@ class World(object):
     self.size = game_pb2.Coordinate(x=max(4, width), y=max(4, height))
     self._updates_grid = common.MakeGrid(self.size)
     self._static_blocks_grid = common.MakeGrid(self.size)
+    self._rockets = []
 
   def _GetRandomPos(self):
     """Returns a random coordinate within the world (and not in the walls)."""
@@ -66,8 +67,9 @@ class World(object):
         if block:
           yield block
 
-  def RebuildTerrain(self, power_up_type):
+  def ClearBlocksAndRebuildTerrain(self, power_up_type):
     self._static_blocks_grid = common.MakeGrid(self.size)
+    self._rockets = []
 
     if config.TERRAIN:
       ripple_total = random.randint(-1, 1)
@@ -141,3 +143,34 @@ class World(object):
   def ClearTerrain(self, pos):
     """Sets a new block in the terrain."""
     self.SetTerrain(_Block(_B.EMPTY, pos.x, pos.y))
+
+  def GetTerrain(self, pos):
+    """Gets the terrain block at a coordinate. None if no block is there."""
+    return self._static_blocks_grid[pos.x][pos.y]
+
+  def IterAllRockets(self):
+    return iter(self._rockets)
+
+  def AddRocket(self, rocket):
+    self._rockets.append(rocket)
+    self._updates_grid[rocket.pos.x][rocket.pos.y] = rocket
+
+  def _UpdateAsEmpty(self, pos):
+    self._updates_grid[pos.x][pos.y] = _Block(_B.EMPTY, pos.x, pos.y)
+
+  def AdvanceBlocks(self):
+    """Updates positions for moving blocks: rockets."""
+    for b in self._rockets:
+      self._UpdateAsEmpty(b.pos)
+      b.pos.x = (b.pos.x + b.direction.x) % self.size.x
+      b.pos.y = (b.pos.y + b.direction.y) % self.size.y
+
+  def ExpireBlocks(self):
+    """Removes blocks with limited lifetimes: rockets."""
+    rm_indices = []
+    for i, rocket in enumerate(self._rockets):
+      if rocket.last_viable_tick < self._tick:
+        rm_indices.append(i)
+        self._UpdateAsEmpty(rocket.pos)
+    for i in reversed(rm_indices):
+      del self._rockets[i]

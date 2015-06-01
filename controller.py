@@ -85,7 +85,6 @@ class Controller(object):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       # When preparing for a new round to start, reinitialize state and
       # reset all players to alive.
-      self._rockets = []
       # a subset of static blocks; to track expiration
       self._player_tails_by_id = collections.defaultdict(lambda: list())
 
@@ -103,7 +102,7 @@ class Controller(object):
         power_up_type = random.choice(_POWER_UPS + [_B.NUKE])
       else:
         power_up_type = None
-      self._world.RebuildTerrain(power_up_type)
+      self._world.ClearBlocksAndRebuildTerrain(power_up_type)
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
         info.alive = game_pb2.PlayerInfo.ALIVE
@@ -118,7 +117,7 @@ class Controller(object):
       environment_blocks = []
       if self._stage != game_pb2.Stage.COLLECT_PLAYERS:
         environment_blocks += list(self._world.IterAllTerrainBlocks())
-        environment_blocks += self._rockets
+        environment_blocks += list(self._world.IterAllRockets())
       self._client_facing_state = network_pb2.Response(
           tick=self._tick,
           size=self._world.size,
@@ -255,7 +254,7 @@ class Controller(object):
           y=(origin.y + direction.y) % self._world.size.y)
     else:
       rocket_pos = origin
-    self._rockets.append(_B(
+    self._world.AddRocket(_B(
         type=_B.ROCKET,
         pos=rocket_pos,
         direction=direction,
@@ -271,7 +270,7 @@ class Controller(object):
         pos = game_pb2.Coordinate(
             x=(origin.x + i) % self._world.size.x,
             y=(origin.y + j) % self._world.size.y)
-        self._rockets.append(_B(
+        self._world.AddRocket(_B(
             type=_B.ROCKET,
             pos=pos,
             direction=game_pb2.Coordinate(
@@ -331,8 +330,7 @@ class Controller(object):
           if not config.AUTO_MOVE:
             head.move = False
 
-    for rocket in self._rockets:
-      self._AdvanceBlock(rocket)
+    self._world.AdvanceBlocks()
 
     # Expire tails.
     for tails in self._player_tails_by_id.values():
@@ -340,13 +338,7 @@ class Controller(object):
         self._world.ClearTerrain(tails[0].pos)
         tails.pop(0)
 
-    # Expire rockets.
-    rm_indices = []
-    for i, rocket in enumerate(self._rockets):
-      if rocket.last_viable_tick < self._tick:
-        rm_indices.append(i)
-    for i in reversed(rm_indices):
-      del self._rockets[i]
+    self._world.ExpireBlocks()
 
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
@@ -390,10 +382,14 @@ class Controller(object):
     active_heads = [
         head for secret, head in self._player_heads_by_secret.iteritems()
         if self._tick >= self._player_infos_by_secret[secret].first_active_tick]
-    for b in itertools.chain(active_heads, self._rockets):
+    for b in itertools.chain(active_heads, self._world.IterAllRockets()):
       hit = None
-      for target_grid in (moving_blocks_grid, self._static_blocks_grid):
-        hit = target_grid[b.pos.x][b.pos.y]
+      for target_grid in (moving_blocks_grid, self._world):
+        if hasattr(target_grid, 'GetTerrain'):
+          # TODO Store heads and rockets in world, generic Get.
+          hit = target_grid.GetTerrain(b.pos)
+        else:
+          hit = target_grid[b.pos.x][b.pos.y]
         if hit:
           destroyed.append((hit, b))
           if not self._CheckIsPlayerHeadPickUpItem(b, hit):
@@ -409,7 +405,7 @@ class Controller(object):
       elif b.type == _B.ROCKET:
         # Mark for immediate expiration rather than finding/deleting now.
         b.last_viable_tick = self._tick - 1
-      elif self._static_blocks_grid[b.pos.x][b.pos.y] is b:
+      elif self._world.GetTerrain(pos) is b:
         self._world.ClearTerrain(b.pos)
         if b.type == _B.PLAYER_TAIL:
           b.last_viable_tick = self._tick - 1
