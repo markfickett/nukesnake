@@ -165,11 +165,11 @@ class World(object):
       b.pos.x = (b.pos.x + b.direction.x) % self.size.x
       b.pos.y = (b.pos.y + b.direction.y) % self.size.y
 
-  def ExpireBlocks(self):
+  def ExpireBlocks(self, tick):
     """Removes blocks with limited lifetimes: rockets."""
     rm_indices = []
     for i, rocket in enumerate(self._rockets):
-      if rocket.last_viable_tick < self._tick:
+      if rocket.last_viable_tick < tick:
         rm_indices.append(i)
         self._UpdateAsEmpty(rocket.pos)
     for i in reversed(rm_indices):

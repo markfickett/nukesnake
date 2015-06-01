@@ -332,7 +332,7 @@ class Controller(object):
         self._world.ClearTerrain(tails[0].pos)
         tails.pop(0)
 
-    self._world.ExpireBlocks()
+    self._world.ExpireBlocks(self._tick)
 
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
@@ -399,9 +399,10 @@ class Controller(object):
       elif b.type == _B.ROCKET:
         # Mark for immediate expiration rather than finding/deleting now.
         b.last_viable_tick = self._tick - 1
-      elif self._world.GetTerrain(pos) is b:
+      elif self._world.GetTerrain(b.pos) is b:  # Terrain was hit.
         self._world.ClearTerrain(b.pos)
         if b.type == _B.PLAYER_TAIL:
+          # Flag for deletion rather than finding and deleting now.
           b.last_viable_tick = self._tick - 1
         elif b.type == _B.ROCK:
           self._world.SetTerrain(_B(type=_B.BROKEN_ROCK, pos=b.pos))
