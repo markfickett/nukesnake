@@ -30,6 +30,7 @@ class World(object):
     self.size = game_pb2.Coordinate(x=max(4, width), y=max(4, height))
     self._updates_grid = common.MakeGrid(self.size)
     self._static_blocks_grid = common.MakeGrid(self.size)
+    self._expiring_blocks_soonest_first = []  # player tails
     self._rockets = []
     self._player_heads_by_key = {}
 
@@ -140,6 +141,9 @@ class World(object):
     self._updates_grid[block.pos.x][block.pos.y] = block
     self._static_blocks_grid[block.pos.x][block.pos.y] = (
         None if block.type == _B.EMPTY else block)
+    if block.HasField('last_viable_tick'):
+      self._expiring_blocks_soonest_first.append(block)
+      self._expiring_blocks_soonest_first.sort(key=lambda b: b.last_viable_tick)
 
   def ClearTerrain(self, pos):
     """Sets a new block in the terrain."""
@@ -148,6 +152,15 @@ class World(object):
   def GetTerrain(self, pos):
     """Gets the terrain block at a coordinate. None if no block is there."""
     return self._static_blocks_grid[pos.x][pos.y]
+
+  def StopTerrainExpiration(self, filter_fn):
+    rm_indices = []
+    for i, b in enumerate(self._expiring_blocks_soonest_first):
+      if filter_fn(b):
+        b.ClearField('last_viable_tick')
+        rm_indices.append(i)
+    for i in reversed(rm_indices):
+      del self._expiring_blocks_soonest_first[i]
 
   def IterAllRockets(self):
     return iter(self._rockets)
@@ -165,7 +178,7 @@ class World(object):
     b.pos.y = (b.pos.y + b.direction.y) % self.size.y
     self._updates_grid[b.pos.x][b.pos.y] = b
 
-  def ExpireRockets(self, tick):
+  def ExpireBlocks(self, tick):
     rm_indices = []
     for i, rocket in enumerate(self._rockets):
       if rocket.last_viable_tick < tick:
@@ -173,6 +186,10 @@ class World(object):
         self._UpdateAsEmpty(rocket.pos)
     for i in reversed(rm_indices):
       del self._rockets[i]
+
+    expiring = self._expiring_blocks_soonest_first
+    while expiring and expiring[0].last_viable_tick < tick:
+      self.ClearTerrain(expiring.pop(0).pos)
 
   def GetPlayerHead(self, key):
     return self._player_heads_by_key.get(key)

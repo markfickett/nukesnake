@@ -84,8 +84,6 @@ class Controller(object):
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       # When preparing for a new round to start, reinitialize state and
       # reset all players to alive.
-      # a subset of static blocks; to track expiration
-      self._player_tails_by_id = collections.defaultdict(lambda: list())
 
       # If (almost) everyone left, or the game was over, reset more things.
       reset_stats = prev_stage == game_pb2.Stage.GAME_OVER
@@ -322,19 +320,12 @@ class Controller(object):
               pos=old_head_pos,
               last_viable_tick=self._tick + tail_duration,
               player_id=head.player_id)
-          self._player_tails_by_id[head.player_id].append(tail)
           self._world.SetTerrain(tail)
 
     for rocket in self._world.IterAllRockets():
       self._world.AdvanceBlock(rocket)
 
-    # Expire tails.
-    for tails in self._player_tails_by_id.values():
-      while tails and (tails[0].last_viable_tick < self._tick):
-        self._world.ClearTerrain(tails[0].pos)
-        tails.pop(0)
-
-    self._world.ExpireRockets(self._tick)
+    self._world.ExpireBlocks(self._tick)
 
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
@@ -461,7 +452,9 @@ class Controller(object):
           return False
       self._world.RemovePlayerHead(secret)
     # Tail blocks will no longer update, but are already in statics.
-    self._player_tails_by_id.pop(player_id, None)
+    self._world.StopTerrainExpiration(
+        lambda block: block.type == _B.PLAYER_TAIL
+        and block.player_id == player_id)
     for other_secret, info in self._player_infos_by_secret.iteritems():
       if secret == other_secret:
         # If this is after Unregister, there may be no PlayerInfo for the
