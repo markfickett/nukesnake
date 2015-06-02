@@ -25,6 +25,7 @@ class Player(object):
     self._secret = secret
     self._info = player_info
     self._round_start_time = None
+    self._grid = None
 
     self._last_round = 0
     self._SetAbilities(0)
@@ -76,16 +77,17 @@ class Player(object):
         break
 
     player_head = None
-    grid = common.MakeGrid(new_game_state.size)
-    for block in new_game_state.block:
-      grid[block.pos.x][block.pos.y] = block
+    if self._grid is None:
+      self._grid = common.MakeGrid(new_game_state.size)
+    for block in new_game_state.block_update:
+      self._grid[block.pos.x][block.pos.y] = block
       if block.player_id == self._info.player_id:
         player_head = block
     if not player_head:
       logging.warning(
           'AI could not find its own head.\n%s\n%s',
           self._info,
-          [str(b).replace('\n', ' ') for b in new_game_state.block
+          [str(b).replace('\n', ' ') for b in new_game_state.block_update
            if b.type == game_pb2.Block.PLAYER_HEAD])
       return
     default_dir = (player_head.direction.x, player_head.direction.y)
@@ -94,7 +96,7 @@ class Player(object):
     for dx in xrange(-self._view_dist, self._view_dist + 1):
       row = []
       for dy in xrange(-self._view_dist, self._view_dist + 1):
-        row.append(grid[
+        row.append(self._grid[
             (player_head.pos.x + dx) % new_game_state.size.x][
             (player_head.pos.y + dy) % new_game_state.size.y])
       nearby.append(row)
@@ -111,7 +113,7 @@ class Player(object):
         clear_in_view = True
         for dist in range(1, self._view_dist + 1):
           block = nearby[self._view_dist + i * dist][self._view_dist + j * dist]
-          if block is None:
+          if block is None or block.type == game_pb2.Block.EMPTY:
             if dist == 1:
               safe_directions.add((i, j))
           elif (block.type in _DESIRABLE_BLOCKS or
