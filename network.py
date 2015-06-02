@@ -283,7 +283,7 @@ class Client(object):
           errno.EREMOTE,
           e,
           'Timeout waiting for registration reply. Do you need to start a'
-          ' server with network.py or specify --host ?')
+          ' server with server_main.py or specify --host ?')
     return resp.player_id
 
   def Move(self, secret, direction):

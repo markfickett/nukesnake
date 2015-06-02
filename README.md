@@ -20,7 +20,7 @@ To start from the command line (most portable and most configurable), install [G
     # Generate the Python protos.
     protoc --python_out=. *.proto
     # Start the server.
-    ./network.py --width 100 --height 30
+    ./main_server.py --width 100 --height 30
     # Start any number of clients (optionally with AIs to play against).
     ./client.py --ai Terminator
 
