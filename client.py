@@ -9,6 +9,7 @@ Examples:
 import argparse
 import curses
 import locale
+import logging
 import random
 import time
 
