@@ -111,6 +111,13 @@ class Client(object):
     if not states:
       return False
     self._game_state = states[-1]
+    if len(states) > 1:
+      logging.info('got %d states at once, squashing', len(states))
+      block_updates = []
+      for state in states:
+        block_updates += state.block_update
+      del self._game_state.block_update[:]
+      self._game_state.block_update.extend(block_updates)
     self._player_info_by_id = dict(
         (info.player_id, info) for info in self._game_state.player_info)
     return True
