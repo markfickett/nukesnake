@@ -153,6 +153,7 @@ class Controller(object):
         alive=starting_alive)
     self._scoring.AddPlayer(info)
     self._player_infos_by_secret[secret] = info
+    self._dirty = True
     self._next_player_id += 1
     if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
       self._AddPlayerHeadResetPos(secret, info)
@@ -304,6 +305,8 @@ class Controller(object):
         _STARTING_TAIL_LENGTH + self._tick / _TAIL_GROWTH_TICKS)
     for secret, info in self._player_infos_by_secret.iteritems():
       head = self._world.GetPlayerHead(secret)
+      if not head:
+        continue  # Some killed, others still playing.
       power_up = info.power_up[0].type if info.power_up else None
       if ((power_up == _B.FAST
            or self._tick % _HEAD_MOVE_INTERVAL == 0)
@@ -359,10 +362,11 @@ class Controller(object):
   def _ProcessCollisions(self):
     destroyed = []
     moving_blocks_grid = common.MakeGrid(self._world.size)
-    active_heads = [
-        self._world.GetPlayerHead(secret)
-        for secret, info in self._player_infos_by_secret.iteritems()
-        if self._tick >= info.first_active_tick]
+    active_heads = filter(
+        bool,  # Filter when some are killed but others are still playing.
+        (self._world.GetPlayerHead(secret)
+         for secret, info in self._player_infos_by_secret.iteritems()
+         if self._tick >= info.first_active_tick))
     for b in itertools.chain(active_heads, self._world.IterAllRockets()):
       hit = None
       for target_grid in (moving_blocks_grid, self._world):
