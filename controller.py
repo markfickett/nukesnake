@@ -356,10 +356,6 @@ class Controller(object):
 
     self._dirty = True
 
-  def _AdvanceBlock(self, block):
-    block.pos.x = (block.pos.x + block.direction.x) % self._world.size.x
-    block.pos.y = (block.pos.y + block.direction.y) % self._world.size.y
-
   def _ProcessCollisions(self):
     destroyed = []
     moving_blocks_grid = common.MakeGrid(self._world.size)

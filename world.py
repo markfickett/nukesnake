@@ -1,3 +1,4 @@
+import itertools
 import logging
 import random
 
@@ -42,10 +43,9 @@ class World(object):
     self._player_heads_by_key = {}
 
   def GenerateAndClearUpdates(self):
-    for head in self._player_heads_by_key.itervalues():
-      update = self._updates_grid[head.pos.x][head.pos.y]
-      if update not in (None, head):
-        self._updates_grid[head.pos.x][head.pos.y] = head
+    for moving in itertools.chain(
+        self._player_heads_by_key.itervalues(), self._rockets):
+      self._updates_grid[moving.pos.x][moving.pos.y] = moving
     for row in self._updates_grid:
       for block in row:
         if block:
@@ -203,7 +203,7 @@ class World(object):
     self._UpdateAsEmpty(b.pos)
     b.pos.x = (b.pos.x + b.direction.x) % self.size.x
     b.pos.y = (b.pos.y + b.direction.y) % self.size.y
-    self._updates_grid[b.pos.x][b.pos.y] = b
+    # Moving blocks (player heads and rockets) are always included in updates.
     self._dirty = True
 
   def ExpireBlocks(self, tick):
