@@ -94,15 +94,15 @@ class _ProtoSocket(object):
   def _WriteChunked(self, proto, oversize, dest_addrs):
     # TODO: Generalize (for request too / for arbitrary fields)?
     num_chunks = oversize / self._BUFFER_SIZE + 2
-    remaining_block_list = list(proto.block)
+    remaining_block_list = list(proto.block_update)
     blocks_per_chunk = (len(remaining_block_list) / num_chunks) + 1
-    del proto.block[:]
+    del proto.block_update[:]
     chunk_index = 0
     while remaining_block_list:
       block_chunk = remaining_block_list[:blocks_per_chunk]
       remaining_block_list = remaining_block_list[blocks_per_chunk:]
       chunk = proto.__class__(
-          block=block_chunk,
+          block_update=block_chunk,
           chunk_info=network_pb2.Chunk(
               segment_id=self._next_segment_id,
               chunk_index=chunk_index,
@@ -123,7 +123,7 @@ class _ProtoSocket(object):
       ordered.sort(key=lambda chunk: chunk.chunk_info.chunk_index)
       first = ordered[0]
       for chunk in ordered[1:]:
-        first.block.extend(chunk.block)
+        first.block_update.extend(chunk.block_update)
       return first
     return None
 
