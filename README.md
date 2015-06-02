@@ -18,11 +18,11 @@ To start from the command line (most portable and most configurable), install [G
     # Install Google protobuf libraries. Prompts for sudo.
     ./setup.sh
     # Generate the Python protos.
-    protoc --python_out=. *.proto
+    make pb2
     # Start the server.
     ./main_server.py --width 100 --height 30
     # Start any number of clients (optionally with AIs to play against).
-    ./client.py --ai Terminator
+    ./main_client.py --ai Terminator
 
 License
 -------
