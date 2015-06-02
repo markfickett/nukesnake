@@ -31,6 +31,7 @@ class Client(object):
     self._block_palettes_by_type = {}
     self._player_palettes = []
     self._num_message_lines = 1
+    self._prev_size = (None, None)
 
     self._game_state = None
 
@@ -68,6 +69,10 @@ class Client(object):
           self._DoPlayerCommand(local_player_index, secret, info, key_code)
           local_player_index += 1
 
+      current_size = self._window.getmaxyx()
+      if current_size != self._prev_size:
+        self._prev_size = current_size
+        # TODO self._game_server.RequestFullUpdate()
       updated = self._UpdateGameState()
       if updated or (
           self._game_state and
@@ -142,6 +147,8 @@ class Client(object):
   def _Repaint(self):
     h, w = self._window.getmaxyx()
 
+    if self._game_state.full_update:
+      self._window.erase()
     for block in self._game_state.block_update:
       self._RenderBlock(block)
 

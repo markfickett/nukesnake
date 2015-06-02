@@ -113,8 +113,7 @@ class Controller(object):
     collecting = self._stage == game_pb2.Stage.COLLECT_PLAYERS
     if self._dirty or (self._world.dirty and not collecting):
       if collecting:
-        blocks = list(self._world.erase_mask) + list(
-            self._world.IterAllPlayerHeads())
+        blocks = list(self._world.IterAllPlayerHeads())
       else:
         blocks = list(self._world.GenerateAndClearUpdates())
       self._client_facing_state = network_pb2.Response(
@@ -122,6 +121,7 @@ class Controller(object):
           size=self._world.size,
           player_info=self._player_infos_by_secret.values(),
           block_update=blocks,
+          full_update=collecting,
           stage=self._stage,
           round_num=self._round_num)
       if self._scoring.lives is not None:

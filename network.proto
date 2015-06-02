@@ -30,11 +30,12 @@ message Request {
 message Response {
   optional uint64 tick = 1;
   repeated Block block_update = 2;
-  repeated PlayerInfo player_info = 3;
-  optional Stage.Id stage = 4;
-  optional uint32 round_num = 5;
-  optional Coordinate size = 6;
-  optional uint32 player_id = 7;  // first response only
-  optional Chunk chunk_info = 8;
-  optional uint32 lives = 9;  // shared, for coop mode
+  optional bool full_update = 3; // includes all blocks; erase before rendering
+  repeated PlayerInfo player_info = 4;
+  optional Stage.Id stage = 5;
+  optional uint32 round_num = 6;
+  optional Coordinate size = 7;
+  optional uint32 player_id = 8;  // first response only
+  optional Chunk chunk_info = 9;
+  optional uint32 lives = 10;  // shared, for coop mode
 }
