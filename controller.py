@@ -110,8 +110,9 @@ class Controller(object):
       self._scoring.TerrainChanged(self._world.IterAllTerrainBlocks())
 
   def GetGameState(self, last_hash):
-    if self._dirty or self._world.dirty:
-      if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
+    collecting = self._stage == game_pb2.Stage.COLLECT_PLAYERS
+    if self._dirty or (self._world.dirty and not collecting):
+      if collecting:
         blocks = list(self._world.erase_mask) + list(
             self._world.IterAllPlayerHeads())
       else:
