@@ -27,4 +27,3 @@ from google.protobuf import message
 import ai_player_pb2  # protoc --python_out=. *.proto
 import game_pb2
 import network_pb2
-
