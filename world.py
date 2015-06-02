@@ -32,11 +32,6 @@ class World(object):
     self._updates_grid = common.MakeGrid(self.size)
     self._dirty = True
 
-    self.erase_mask = []
-    for x in xrange(self.size.x):
-      for y in xrange(self.size.y):
-        self.erase_mask.append(_Block(_B.EMPTY, x, y))
-
     self._static_blocks_grid = common.MakeGrid(self.size)
     self._expiring_blocks_soonest_first = []  # player tails
     self._rockets = []
