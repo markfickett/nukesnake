@@ -42,6 +42,10 @@ class World(object):
     self._player_heads_by_key = {}
 
   def GenerateAndClearUpdates(self):
+    for head in self._player_heads_by_key.itervalues():
+      update = self._updates_grid[head.pos.x][head.pos.y]
+      if update not in (None, head):
+        self._updates_grid[head.pos.x][head.pos.y] = head
     for row in self._updates_grid:
       for block in row:
         if block:
