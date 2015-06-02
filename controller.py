@@ -325,10 +325,9 @@ class Controller(object):
               player_id=head.player_id)
           self._world.SetTerrain(tail)
 
+    self._world.ExpireBlocks(self._tick)
     for rocket in self._world.IterAllRockets():
       self._world.AdvanceBlock(rocket)
-
-    self._world.ExpireBlocks(self._tick)
 
     # Expire the oldest power-up and activate the next one in the queue.
     for info in self._player_infos_by_secret.itervalues():
