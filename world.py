@@ -232,6 +232,11 @@ class World(object):
     self._updates_grid[head.pos.x][head.pos.y] = head
     self._dirty = True
 
+  def RemoveAllPlayerHeads(self):
+    for head in self._player_heads_by_key.itervalues():
+      self._UpdateAsEmpty(head.pos)
+    self._player_heads_by_key = {}
+
   def RemovePlayerHead(self, key):
     head = self._player_heads_by_key.pop(key, None)
     if head:

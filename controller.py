@@ -99,6 +99,7 @@ class Controller(object):
         power_up_type = random.choice(_POWER_UPS + [_B.NUKE])
       else:
         power_up_type = None
+      self._world.RemoveAllPlayerHeads()
       self._world.ClearBlocksAndRebuildTerrain(power_up_type)
       for secret, info in self._player_infos_by_secret.iteritems():
         self._AddPlayerHeadResetPos(secret, info)
