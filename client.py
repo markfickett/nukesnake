@@ -172,7 +172,9 @@ class Client(object):
     if self._game_state.HasField('lives'):
       # hearts for lives
       message = '%s %s' % (u'\u2665' * self._game_state.lives, message)
-    self._window.addstr(h - 1, 1, message.encode('utf-8'))
+    self._window.move(h - 1, 1)
+    self._window.clrtoeol()
+    self._window.addstr(message.encode('utf-8'))
 
   def _RenderSummaryLine(self, local_player_cardinal, player_id, h, w):
     info = self._player_info_by_id[player_id]
@@ -181,8 +183,10 @@ class Client(object):
     intro = '%4d %s %s' % (info.score, player_icon, info.name)
     palette_attr = curses.color_pair(
         self._player_palettes[info.player_id % len(self._player_palettes)])
-    self._window.addstr(
-        h - (1 + local_player_cardinal), 0, intro.encode('utf-8'), palette_attr)
+    y = h - (1 + local_player_cardinal)
+    self._window.move(y, 0)
+    self._window.clrtoeol()
+    self._window.addstr(intro.encode('utf-8'), palette_attr)
     power_ups = ''.join(
         client_config.BLOCK_CHARACTERS[p.type]
         for p in info.power_up)
