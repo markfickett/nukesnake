@@ -29,7 +29,7 @@ message Request {
 // are sent for each server tick.
 message Response {
   optional uint64 tick = 1;
-  repeated Block block = 2;
+  repeated Block block_update = 2;
   repeated PlayerInfo player_info = 3;
   optional Stage.Id stage = 4;
   optional uint32 round_num = 5;

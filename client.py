@@ -140,9 +140,7 @@ class Client(object):
   def _Repaint(self):
     h, w = self._window.getmaxyx()
 
-    self._window.erase()
-
-    for block in self._game_state.block:
+    for block in self._game_state.block_update:
       self._RenderBlock(block)
 
     for i, player_id in enumerate(self._local_player_ids_ordered, 1):

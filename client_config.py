@@ -22,6 +22,8 @@ PLAYER_ICONS += [chr(c) for c in range(ord('A'), ord('Z') + 1)]
 
 # Characters used to render the various items in the game world.
 BLOCK_CHARACTERS = {
+  _B.EMPTY: ' ',
+
   _B.PLAYER_TAIL: u'\N{Dark Shade}',
   _B.WALL: u'\N{Full Block}',
   _B.ROCKET: u'\N{White Star}',

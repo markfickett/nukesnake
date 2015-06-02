@@ -110,16 +110,17 @@ class Controller(object):
       self._scoring.TerrainChanged(self._world.IterAllTerrainBlocks())
 
   def GetGameState(self, last_hash):
-    if self._dirty:
-      environment_blocks = []
-      if self._stage != game_pb2.Stage.COLLECT_PLAYERS:
-        environment_blocks += list(self._world.IterAllTerrainBlocks())
-        environment_blocks += list(self._world.IterAllRockets())
+    if self._dirty or self._world.dirty:
+      if self._stage == game_pb2.Stage.COLLECT_PLAYERS:
+        blocks = list(self._world.erase_mask) + list(
+            self._world.IterAllPlayerHeads())
+      else:
+        blocks = list(self._world.GenerateAndClearUpdates())
       self._client_facing_state = network_pb2.Response(
           tick=self._tick,
           size=self._world.size,
           player_info=self._player_infos_by_secret.values(),
-          block=environment_blocks + list(self._world.IterAllPlayerHeads()),
+          block_update=blocks,
           stage=self._stage,
           round_num=self._round_num)
       if self._scoring.lives is not None:
@@ -173,7 +174,6 @@ class Controller(object):
         head.type = _B.MINE
         head.pos.MergeFrom(as_mine_at)
       self._world.SetPlayerHead(player_secret, head)
-    self._dirty = True
 
   def Unregister(self, secret):
     self._player_infos_by_secret.pop(secret, None)
@@ -256,7 +256,6 @@ class Controller(object):
         direction=direction,
         last_viable_tick=self._tick + _ROCKET_DURATION_TICKS,
         player_id=player_id))
-    self._dirty = True
 
   def _AddNuke(self, origin, direction, player_id):
     for i in xrange(-_NUKE_SIZE, _NUKE_SIZE + 1):
@@ -274,7 +273,6 @@ class Controller(object):
                 y=(-1 if j < 0 else 1) if abs(j) >= abs(i) else 0),
             last_viable_tick=self._tick + _ROCKET_DURATION_TICKS,
             player_id=player_id))
-    self._dirty = True
 
   def Update(self):
     t = time.time()

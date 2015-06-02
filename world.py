@@ -29,10 +29,29 @@ class World(object):
     # Readonly, but exposed for common use in controller.
     self.size = game_pb2.Coordinate(x=max(4, width), y=max(4, height))
     self._updates_grid = common.MakeGrid(self.size)
+    self._dirty = True
+
+    self.erase_mask = []
+    for x in xrange(self.size.x):
+      for y in xrange(self.size.y):
+        self.erase_mask.append(_Block(_B.EMPTY, x, y))
+
     self._static_blocks_grid = common.MakeGrid(self.size)
     self._expiring_blocks_soonest_first = []  # player tails
     self._rockets = []
     self._player_heads_by_key = {}
+
+  def GenerateAndClearUpdates(self):
+    for row in self._updates_grid:
+      for block in row:
+        if block:
+          yield block
+    self._updates_grid = common.MakeGrid(self.size)
+    self._dirty = False
+
+  @property
+  def dirty(self):
+    return self._dirty
 
   def _GetRandomPos(self):
     """Returns a random coordinate within the world (and not in the walls)."""
@@ -135,6 +154,7 @@ class World(object):
       for j in xrange(self.size.y):
         self._updates_grid[i][j] = (
             self._static_blocks_grid[i][j] or _Block(_B.EMPTY, i, j))
+    self._dirty = True
 
   def SetTerrain(self, block):
     """Sets a new block in the terrain."""
@@ -144,6 +164,7 @@ class World(object):
     if block.HasField('last_viable_tick'):
       self._expiring_blocks_soonest_first.append(block)
       self._expiring_blocks_soonest_first.sort(key=lambda b: b.last_viable_tick)
+    self._dirty = True
 
   def ClearTerrain(self, pos):
     """Sets a new block in the terrain."""
@@ -168,15 +189,18 @@ class World(object):
   def AddRocket(self, rocket):
     self._rockets.append(rocket)
     self._updates_grid[rocket.pos.x][rocket.pos.y] = rocket
+    self._dirty = True
 
   def _UpdateAsEmpty(self, pos):
     self._updates_grid[pos.x][pos.y] = _Block(_B.EMPTY, pos.x, pos.y)
+    self._dirty = True
 
   def AdvanceBlock(self, b):
     self._UpdateAsEmpty(b.pos)
     b.pos.x = (b.pos.x + b.direction.x) % self.size.x
     b.pos.y = (b.pos.y + b.direction.y) % self.size.y
     self._updates_grid[b.pos.x][b.pos.y] = b
+    self._dirty = True
 
   def ExpireBlocks(self, tick):
     rm_indices = []
@@ -201,11 +225,13 @@ class World(object):
     head.pos.MergeFrom(pos)
     self._player_heads_by_key[key] = head
     self._updates_grid[head.pos.x][head.pos.y] = head
+    self._dirty = True
 
   def SetPlayerHead(self, key, head):
     self.RemovePlayerHead(key)
     self._player_heads_by_key[key] = head
     self._updates_grid[head.pos.x][head.pos.y] = head
+    self._dirty = True
 
   def RemovePlayerHead(self, key):
     head = self._player_heads_by_key.pop(key, None)
