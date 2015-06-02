@@ -1,5 +1,8 @@
 #!/usr/bin/python
-"""Interactive server and client startup script."""
+"""Interactive server and client startup script.
+
+See main_* for separate server and client starters.
+"""
 
 import os
 import multiprocessing

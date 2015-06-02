@@ -12,7 +12,7 @@ syslog.syslog(
 py_src_dir = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', '..', 'Contents', 'Resources'))
 
-launcher_abspath = os.path.join(py_src_dir, 'launcher.py')
+launcher_abspath = os.path.join(py_src_dir, 'main.py')
 syslog.syslog(
     syslog.LOG_DEBUG,
     'Opening Terminal for: %s' % launcher_abspath)
